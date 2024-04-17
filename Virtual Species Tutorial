@@ -1,0 +1,370 @@
+install.packages("virtualspecies")
+install.packages("raster")
+
+library(raster)
+library(virtualspecies)
+
+################################################################################
+# SECTION 1: INPUT DATA
+
+# to input data directly from World Climate Data
+worldclim <- getData("worldclim", var="bio", res=10)
+# worldclim = data source
+# var = variable (i.e. temp, prec) - bio = all 
+# res = resolution
+worldclim
+# class = raster stack
+# raster stack = gridded spatial data
+
+names(worldclim)
+# shows the 19 bio variables
+
+# to access the first four variables/layers
+worldclim[[1:4]]
+
+# To access just BIO1 and BIO12
+# BOI1 = mean temp
+# BIO12 = annual precipitation
+worldclim[[c(1,12)]]
+# OR
+worldclim[[c("bio1", "bio12")]]
+
+# to plot the variables/layers
+par(oma = c(0.1, 0.1, 0.1, 2.1))
+plot(worldclim[[c("bio1", "bio12")]])
+# par = parameter function
+# oma = vector of the form c(bottom, left, top, right) giving
+  # the size of the outer margins in lines of text
+# now the mean temp and annual prec layers are plotted
+
+dev.off()
+
+###############################################################################
+# SECTION 2: GENERATE VIRTUAL SPECIES DISTRIBUTION BY DEFINING RESPONSE FUNCTIONS
+# Purpose: define the response functions of a virtual species to each env. variable
+  # the responses are combined to calculate env. suitability of virtual species
+  # Use function: generateSpFromFun
+  # generation of vs by defining response functions is good for when you just have
+    # a few number of variables (i.e. mean temp and annual precip)
+
+# we can modify virtual species suitability by the env. variables (i.e if we want to
+  # make a tropical species)
+  # I.E. Temperature: we can use the vs package to create a bell-shaped
+  # (guassian distribution function) curve that would show the suitability distribution
+  # of the vs based on mean temp. In the gaussian equation, we have:
+      # mu = mean (can be moved up and down the x-axis)
+      # sigma = standard deviation (modifies the width of the distribution)
+
+# the dnorm function obtains the result of the gaussian distribution function
+  # I.E. gaussian equation if x (mean temp (BIO1)) = 15 C.
+    # REMEMBER: WORLD CLIMATE USES TEMP * 10
+dnorm(x = 150, mean = 250, sd = 50)
+# = 0.001.079819
+## QUESTION: if mean = 250, what does x = 150 represent?
+
+
+# so we first have to tell the package which response we
+# want for which variables
+# the dnorm function is for the bell-shaped response
+# formatFunctions function = tell package which reponse types
+my.parameters <- formatFunctions(bio1 = c(fun='dnorm', mean=250, sd=50),
+                                 bio12 = c(fun='dnorm', mean=4000, sd=2000))
+# so for mean temp (BIO1) we are setting the response to dnorm (bell-shaped)
+  # with mean = 250 (25C) and sd=50 C
+# for annual precip (BIO12) we are setting response to dnorm (bell-shaped)
+  # with mean = 4000 mm and sd = 2000 mm
+
+# now we can use the generateSpFromFun function to great the vs with our parameters
+my.first.species <- generateSpFromFun(raster.stack = worldclim[[c("bio1", "bio12")]],
+                                      parameters = my.parameters,
+                                      plot = TRUE)
+# now we have a plot of the suitability of our VS mapped into geographic space based on
+  # our parameters (bell-shaped response with mean temp and annual precip)
+# the mean temp and annual precip responses are combined, but you can choose
+  # how to combine the responses
+my.first.species
+# this shows us the information under my.first.species
+
+dev.off()
+
+# ------------------------------------------------------------------------------
+# SECTION 2.2.1: OTHER RESPONSE FUNCTIONS
+
+# Bell-shaped function = dnorm
+
+# Linear Function = linearfun
+# I.E. linear function for mean temp.
+formatFunctions(bio1 = c(fun = "linearFun", a=1, b=0))
+# a = slope, b = y-intercept
+## QUESTION: how to plot the graph just showing the linear function
+# to plot the linear function
+x <- worldclim[[1]]
+plot(x, y=linearFun(x, a=1, b=0) , type = "l")
+
+# QUADRATIC FUNCTION = quadraticFun
+formatFunctions(bio1 = c(fun = "quadraticFun", a=-1, b=2, c=0))
+plot(x, y=quadraticFun(x, a=-1, b=2, c=0))
+
+# LOGISTIC FUNCTION = logisticFun
+formatFunctions(bio1 = c(fun = "logisticFun", beta=150, alpha=-5))
+plot(x, y=logisticFun(x, beta=150, alpha=-5))
+
+# NORMAL FUNCTION DEFINE BY EXTREMES = custnorm
+formatFunctions(bio1 = c(fun = 'custnorm', mean = 250, diff = 50, prob = 0.99))
+# this states that optimum (mean) = 250 (25C) and 99% of area under curve (prob=0.99)
+  # will be comprised between 20 and 30C (diff=50 aka absolute difference between mean
+  # and extreme values
+## QUESTION: how can you plot this?
+
+# BETA RESPONSE FUNCTION: betaFun
+formatFunctions(bio1 = c(fun = 'betaFun', p1 = 0, p2 = 250, alpha = 0.9, gamma = 0.08))
+## QUESTION: how can you plot this?
+
+# be careful regarding scaling/rescaling when using different function
+  # for different variables (i.e. gaussian and linear)
+  # rescale.each.response = TRUE OR rescale.each.response = FALSE
+
+#-------------------------------------------------------------------------------
+# SECTION 2.2.3: COMBINING RESPONSE FUNCTIONS
+
+# three ways for combining response functions:
+  # 1: species.type = "additive" (adds response functions)
+  # 2: (DEFAULT) species.type = "multiplicative" (multiplies response functions)
+  # 3: formula = "bio1 + 2 * bio2 + bio3" (create your own formula for how to combine)
+
+# 3 way can be used for adding weight/importance to a variable
+  # I.E. if we want to create a strong importance for temp
+formula = "2 * bio1 + bio12"
+new.species <- generateSpFromFun(raster.stack = worldclim[[c("bio1", "bio12")]],
+                                 parameters = my.parameters,
+                                 formula = "2 * bio1 + bio12",
+                                 plot = TRUE)
+# this shows the geo distribution if temp influences the species more than precip
+new.species
+# gives all info on new.species
+
+# rescale = TRUE is default
+
+#-------------------------------------------------------------------------------
+# SECTION 2.3: HOW TO CREATE AND USE YOUR RESPONSE FUNCTIONS
+
+# you can create your own response functions
+# I.E. to create simple linear function
+linear.function <- function(x, a, b)
+{a*x +b}
+# created own function
+linear.function(x=0.5, a=2, b=1)
+linear.function(x = -20, a = 2, b = 0)
+
+# we can add our own function into formationFunctions for bio1 (mean temp)
+my.responses <- formatFunctions(bio1 = c(fun = "linear.function", a = 1, b = 0),
+                                bio12 = c(fun = "dnorm", mean = 1000, sd = 1000))
+generateSpFromFun(raster.stack = worldclim[[c("bio1", "bio12")]],
+                  parameters = my.responses, plot = TRUE)
+
+dev.off()
+
+###############################################################################
+# SECTION 3: GENERATE VS WITH PCA
+# vs generation with PCA is when you are working with numerous variables
+  # (i.e. 3 temp variables, 2 precip variables, 2 land use variables)
+# function used for PCA generation: generateSpFromPCA
+
+# generate from 6 variables
+my.stack <- worldclim[[c("bio2", "bio5", "bio6", "bio12", "bio13", "bio14")]]
+my.pca.species <- generateSpFromPCA(raster.stack = my.stack)
+my.pca.species
+# since PCA is performed on all pixels, large spatial scales/stacks may be too
+  # much to extract all values for each pixel.
+  # you can run PCA on random subset of values: sample.points = TRUE and define
+    # number of pixels: nb.points = 5000 (usuall approx. 10,000)
+my.pca.species <- generateSpFromPCA(raster.stack = my.stack, 
+                                    sample.points = TRUE, nb.points = 5000)
+my.pca.species
+## QUESTION: What species is it? (i.e. tropical?)
+  # no parameters are set, response is randomly generated
+
+# to view the PCA so that you can choose your parameters
+plotResponse(my.pca.species)
+# the plot shows the variables (top left) and the pixel distribution along the
+  # 2 axes.
+# analysis of this plot shows that the species has a wide tolerance to axis 1
+  # which is driven by bio 12 and bio12 (precipitation variables). The species
+  # has a tighter/moderate response to axis 2, which is driven by bio2 and bio5
+  # (temp variables).
+
+# to show the distribution in geo space
+plot(my.pca.species)
+
+dev.off()
+
+#------------------------------------------------------------------------------
+# SECTION 3.2 CUSTOMIZATION OF PARAMETERS
+# with PCA approach, the gaussian responses to the axes are randomly chosen
+# you can customize the gaussian response functions in 2 ways:
+  
+# CUSTOMIZATION 1: niche.breadth : constrain the random generation of paramters (choose a narrow or wide niche)
+    # controls the standard deviation
+    # default is niche.breadth = "any"
+narrow.species <- generateSpFromPCA(raster.stack = my.stack, sample.points = TRUE,
+                                    nb.points = 5000,
+                                    niche.breadth = "narrow")
+plot(narrow.species)
+# shows distribution with narrow niche breadth
+
+wide.species <- generateSpFromPCA(raster.stack = my.stack, sample.points = TRUE,
+                                  nb.points = 5000,
+                                  niche.breadth = "wide")
+
+plot(wide.species)
+# shows distribution with wide species niche breadth
+
+# CUSTOMIZATION 2: Define the mean (means) and standard deviation (sds)
+  # I.E. customize for a species living in colder and wetter conditions
+    # Axis 1: driven mostly by precipitation. For wetter suitability, you move
+      # the mean to the right (mean of 0 or above)
+    # Axis 2: driven mostly by temp variables. For colder suitability, you move
+      # the mean to top (mean of 1 or above)
+    ## QUESTION: why move mean to top if you want colder suitability?
+    # niche width: create smaller SD for narrow niche breadth
+my.custom.species <- generateSpFromPCA(raster.stack = my.stack, sample.points = TRUE,
+                                       nb.points = 5000,
+                                       means = c(0, 1), sds = c(0.5, 0.5))
+# means c(0,1) = 0 for axis 1, 1 for axis 2
+# sds c(0.5, 0.5)  = 0.5 for axis 1, 0.5 for axis 2
+
+# to see custom distribution in geo space
+plot(my.custom.species)
+
+dev.off()
+
+#-------------------------------------------------------------------------------
+# SECTION 3.2.2: USING YOUR OWN PCA
+# use package ade4 with function dudi.pca tp create your own PCA
+# custom PCA would be needed if you need to create with a very small subset of
+  # your env. stack (i.e. 250 pixels)
+  # if you're working with small subset, the PCA can vary significantly among runs
+
+# to extract a PCA from previous run and use it in next run
+my.first.run <- generateSpFromPCA(raster.stack = my.stack, 
+                                  sample.points = TRUE, nb.points = 250)
+# access PCA with following command:
+my.pca <- my.first.run$details$pca
+my.pca
+# and then enter it into your second run
+my.second.run <- generateSpFromPCA(raster.stack = my.stack, 
+                                   pca = my.pca)
+my.second.run
+
+dev.off()
+
+################################################################################
+# SECTION 4: CONVERSION OF ENVIRONMENTAL SUITABILITY TO PRESENCE/ABSENCE
+# creating a suitability threshold is not appropriate b/c it does not represent real species
+  # real species can be absent from high suitable areas due to biotic factors, events
+  # real species can be present in unsuitable areas (i.e. microhabitats)
+# creating a suitability threshold based on env. factors would just include the
+  # abiotic component of BAM
+
+# probabilistic approach is better:
+  # instead of threshold with either presence/absence above/below suitability,
+  # you have probabiity of occurrence in a pixel depending on suitability
+  # once you have the probability of occurence for each pixel, that probability
+  # is used to sample presence/absence in each pixel, meaning that you make a
+  # random draw of presence/absence weight by the occurrence probability
+  # This will result in different occupancy maps, all valid plots of true species
+  # distribution
+
+# conversion is customizable:
+  # threshold conversion
+  # logistic conversion
+  # linear conversion
+# the logistic conversion tends to be the more realistic distribution
+
+#-------------------------------------------------------------------------------
+# SECTION 4.2: CUSTOMIZATION OF THE CONVERSION
+
+# convertToPA = function to show distribution in presence/absence
+pa1 <- convertToPA(my.first.species, plot = TRUE)
+# by default, the function randomly assigns parameters that determine shape of
+# logistic curve:
+  # alpha = slope of the curve
+  # beta = location of inflection point (point where curve changes i.e. from concave to convex)
+
+# how to customize the parameters (i.e. change alpha and beta)
+pa2 <- convertToPA(my.first.species,
+                   beta = 0.65, alpha = -0.07,
+                   plot = TRUE)
+
+dev.off()
+
+# UNDERSTANDING BETA CHANGES:
+  # lower beta = higher probability of finding suitable conditions (wider distribution range)
+  # higher beta = lower probability of finding suitable conditions (smaller range)
+
+# UNDERSTANDING ALPHA CHANGES: (I.E x-axis = suitability from 0-1)
+  # if alpha = or > x, then conversion shape will be linear
+  # if alpha = 5-10% of x, the conversion shape is logistic
+  # if alpha < x, then conversion is threshold shape
+
+## QUESTION: can you plot these graphs?
+
+#-------------------------------------------------------------------------------
+# SECTION 4.2.3: CONVERSION TO PRESENCE/ABSENCE WITH SPECIES PREVALENCE
+  # species prevalence = # of places/pixels actually occupied by the species out
+  # the total # of pixels available
+  # NOT THE SAME AS SAMPLE PREVALENCE = proportion of samples in which speices
+  # were found
+
+# species prevalence is dependent on:
+  # species-environment relationship
+  # shape of probabilistic conversion curve
+  # spatial distribution of environmental conditions
+# if you want to set a certain species prevalence, the function might have to
+  # find a conversion curve on its own to provide results closest to your species
+  # prevalence value
+
+# setting species prevalence includes modifying alpha and beta
+  # if you fix alpha, then function will change beta to fit species prevalence
+  # if you fix beta, then function will change alpha to fit species preavlance
+  # Fixing alpha is recommended
+
+# species.prevalence = species prevalence function
+sp.0.2 <- convertToPA(my.first.species,
+                      species.prevalence = 0.2)
+# alpha is at default (-0.05)
+# species.prevalence = .2: occupying 20% of world (pixels)
+sp.0.2
+
+# if you want to set alpha value with a more steep curve
+sp.0.015 <- convertToPA(my.first.species,
+                        species.prevalence = 0.015,
+                        alpha = -0.015)
+# species prevalence occupying 1.5% of world/pixels
+sp.0.015
+
+# if you want to set beta value instead
+sp.10 <- convertToPA(my.first.species,
+                     species.prevalence = 0.1,
+                     alpha = NULL,
+                     beta = 0.9)
+# species prevalence occupying 10% of world
+sp.10
+# fixing beta instead of alpha resulted in alpha = -.3
+  # indicating the conversion curve would be more linear shaped
+
+# set a low beta
+sp.10bis <- convertToPA(my.first.species,
+                        species.prevalence = 0.1,
+                        alpha = NULL,
+                        beta = 0.3)
+# WARNING MESSAGE: Warning, the desired species prevalence cannot be obtained
+  # because of the chosen beta and available environmental conditions
+  # The closest possible estimate of prevalence was 0.15 
+  # Perhaps you can try a higher beta value.
+sp.10bis
+
+dev.off()
+
+################################################################################
+# SECTION 5: GENERATING RANDOM VIRTUAL SPECIES
