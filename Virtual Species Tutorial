@@ -368,3 +368,192 @@ dev.off()
 
 ################################################################################
 # SECTION 5: GENERATING RANDOM VIRTUAL SPECIES
+
+# generateRandomSp = function to generate random species
+my.stack <- worldclim[[c("bio2", "bio5", "bio6", "bio12", "bio13", "bio14")]]
+random.sp <- generateRandomSp(my.stack)
+# species was generated with PCA approach due to numerous variables
+  # PCA: 6 or more variables
+  # response function: less than 6 variables
+
+random.sp
+# shows alpha, beta, species prevalence
+
+dev.off()
+
+#-------------------------------------------------------------------------------
+# SECTION 5.1: GENERAL PARAMETERS TO CUSTOMIZE
+
+# APPROACH OPTIONS ARGUMENT: approach =
+  # automatic: will be chosen for you depending on # of variables
+  # random: random approach chose
+  # response
+  # PCA
+
+# RESCALING ARGUMENT: rescale = TRUE or FALSE
+
+# CONVERSION TO PRESENCE/ABSENCE ARGUMENT: convert.to.PA = TRUE
+  # CONVERSION METHOD ARGUMENT: PA.method
+    # probability
+    # threshold
+  # can modify alpha, beta, and species.prevalence
+
+#-------------------------------------------------------------------------------
+# SECTION 5.2: PARAMETERS SPECIFIC TO A RESPONSE APPROACH
+# Response Function Options:
+  # gaussian
+  # linear
+  # logistic
+  # quadratic
+
+# default = all relations are used
+
+# relations argument = combine/modify response functions
+random.sp1 <- generateRandomSp(worldclim[[1:3]], 
+                               relations = c("gaussian", "logistic"),
+                               convert.to.PA = FALSE)
+random.sp1
+# used 3 variables: bio1, bio2, bio3
+# 2 response functions: gaussian and logistic
+# suitability map (PA=FALSE)
+
+# plotResponse function = plotting the response functions
+plotResponse(random.sp1)
+# shows response function for each variable
+
+# Example of just gaussian response
+random.sp2 <- generateRandomSp(worldclim[[1:3]], 
+                               relations = "gaussian",
+                               convert.to.PA = FALSE)
+random.sp2
+plotResponse(random.sp2)
+
+dev.off()
+
+# rescale.each.response argument to rescale response
+
+# you can activate a realistic species argument in order to provide randomly
+  # generated realistic species as random species might show a species living in
+  # 35C summer and -50C winters
+# realistic.sp argument = activate realistic species
+# without the realistic species argument, the species reponse funcitons and their
+  # suitability get picked randomly for each variable and independent of each variable
+# with the realistic species argument, the response functions of the variables
+  # their suitability range depends on the response function and suitability of
+  # the other variables. It will get constrain based on the suitability of the
+  # other variables
+# sometimes realistic species argument doesn't work and you might have to try PCA
+  # approach or different runs
+
+# realistic species argument = TRUE
+realistic.sp <- generateRandomSp(worldclim[[c(1, 5)]],
+                                 realistic.sp = TRUE,
+                                 convert.to.PA = FALSE)
+
+# realistic species argument = FALSE
+unrealistic.sp <- generateRandomSp(worldclim[[c(1, 5)]],
+                                   realistic.sp = FALSE,
+                                   convert.to.PA = FALSE)
+
+# to convert realistic species to presence/absence
+realistic.sp <- convertToPA(realistic.sp, beta = 0.5)
+
+dev.off()
+
+# sp.type argument = define how response functions are combined
+  # species.type = "additive" (response functions are added)
+  # "multiplicative" (default)
+  # "mixed"
+
+#-------------------------------------------------------------------------------
+# SECTION 5.3: PARAMETERS SPECIFIC TO PCA APPROACH
+
+# you can set # of sample points(pixels) if you need to
+safe.run.sp <- generateRandomSp(worldclim[[c(1, 5, 6)]], 
+                                sample.points = TRUE,
+                                nb.points = 1000)
+
+# modify niche range width using niche.breadth argument
+
+dev.off()
+
+################################################################################
+# SECTION 6: EXPLORING AND USING THE OUTPUTS OF VIRTUAL SPECIES
+# purpose of section is to show how to obtain the maps of generated virtual species
+
+#-------------------------------------------------------------------------------
+# SECTION 6.1: CONSULT THE DETAILS OF A GENERATED VIRTUAL SPECIES
+
+# example of creating a virtual species
+
+# format response functions
+my.parameters <- formatFunctions(bio1 = c(fun = 'dnorm', mean = 250, sd = 50),
+                                 bio12 = c(fun = 'dnorm', mean = 4000, sd = 2000))
+
+# generate virtual species
+my.species <- generateSpFromFun(raster.stack = worldclim[[c("bio1", "bio12")]],
+                                parameters = my.parameters)
+
+# convert to presence/absence
+my.species <- convertToPA(my.species,
+                          beta = 0.7)
+
+# to see how it was generated
+my.species
+# shows variables used
+# shows approach used (gaussian)
+# shows range of each variable (mean temp: -26.9C - 31.4C)
+# shows parameters of conversion to presence/absence (probability)
+# shows alpha, beta, species prevalence
+
+dev.off()
+
+#-------------------------------------------------------------------------------
+# SECTION 6.2: PLOT VIRTUAL SPECIES MAP
+
+plot(my.species)
+
+dev.off()
+
+#-------------------------------------------------------------------------------
+# SECTION 6.3: PLOT SPECIES-ENVIRONMENT RELATIONSHIP
+
+plotResponse(my.species)
+
+dev.off()
+
+#-------------------------------------------------------------------------------
+# SECTION 6.4: EXTACT ELEMENTS OF THE VIRTUAL SPECIES
+  # I.E. rasters of environmental suitability
+
+# virtual species class is list with things added to list when you run functions
+# str() function shows the list
+str(my.species)
+# list of 6 elements:
+  # approach, details, suitable raster, PA.conversion, probability of occurrence, pa.raster
+
+# if you want to extract an element
+my.species$pa.raster
+my.species$suitab.raster
+
+# to extract sub-sub objects
+my.species$details$variables
+
+# sub-sub-sub objects (3rd degree) are not shown with str()
+my.species$details$parameters
+# shows also fun, args, min, max, etc
+
+# to extract 3rd degree sub objects
+str(my.species$details$parameters)
+
+#-------------------------------------------------------------------------------
+# SECTION 6.5 SAVING VIRTUAL SPECIES OBJECTS FOR LATER USE
+
+# save () function: to save on hard drive
+save(my.species, file = "MyVirtualSpecies")
+
+# load () function: to load object
+load(file = "MyVirtualSpecies")
+
+################################################################################
+# SECTION 7: SAMPLING OCCURRENCE POINTS
