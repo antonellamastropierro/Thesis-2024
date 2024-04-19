@@ -1,8 +1,10 @@
 install.packages("virtualspecies")
 install.packages("raster")
+install.packages("rworldmap")
 
 library(raster)
 library(virtualspecies)
+library(rworldmap)
 
 ################################################################################
 # SECTION 1: INPUT DATA
@@ -557,3 +559,361 @@ load(file = "MyVirtualSpecies")
 
 ################################################################################
 # SECTION 7: SAMPLING OCCURRENCE POINTS
+
+# sampleOccurrences function = sampling of species occurrence
+  # you can sample either presence/absence or presence only
+  # gives you ability to introduce sampling biases
+
+# EXAMPLE: tropical virtual species
+# format response functions
+my.parameters <- formatFunctions(bio1 = c(fun = 'dnorm', mean = 250, sd = 50),
+                                 bio12 = c(fun = 'dnorm', mean = 4000, sd = 2000))
+
+# generate virtual species
+my.first.species <- generateSpFromFun(raster.stack = worldclim[[c("bio1", "bio12")]],
+                                      parameters = my.parameters)
+
+# convert to presence/absence
+my.first.species <- convertToPA(my.first.species,
+                                beta = 0.7, plot = FALSE)
+
+# sample presence-only occurrences
+# n = 30: number of points to samples
+presence.points <- sampleOccurrences(my.first.species,
+                                     n = 30,  type = "presence only")
+# shows presence points on map
+
+str(presence.points)
+# sample points: dataframe with the sampled points
+# detection.probability = 1
+# error probability = 0
+
+presence.points$sample.points
+
+colnames(presence.points$sample.points)
+# dataframe with 4 columns:
+  # x coordinates
+  # y coordinates
+  # real presence/absence (1/0) in the sampled pixel
+  # observed (1=pre, 0=abs)
+  # REAL and OBSERVED columns only differ if you have specified detection
+    # probability and/or error probability
+
+# sample presence/absence occurrences
+PA.points <- sampleOccurrences(my.first.species,
+                               n = 30,
+                               type = "presence-absence")
+
+PA.points
+# the sample points are purely random
+  # chance of having no presence points
+# sample.prevalence argument = used to define # of presences and absences
+
+dev.off()
+
+#-------------------------------------------------------------------------------
+# SECTION 7.2: DELIMITING A SAMPLING AREA
+# 3 ways to delimit sampling area:
+  # 1: specify region of world
+  # 2: provide a polygon (spatialPolygons of package sp)
+  # 3: provide an extent object
+
+# APPROACH 1: SPECIFY REGION OF WORLD: sampling.area argument
+PA.points <- sampleOccurrences(my.first.species,
+                               n = 30,
+                               type = "presence-absence",
+                               sampling.area = c("South America", "Mexico"))
+# you must provide the correct names of the region/continents and countries
+
+# Continent Names: Africa, Antarctica, Asia, Australia, Europe, North America, South America
+# Region Names: Africa, Antarctica, Australia, Eurasia, North America, South America
+# Country Names: to view the correct countries names, use rworldmap package
+levels(getMap()@data$SOVEREIGNT)
+
+dev.off()
+
+# APPRACH 2: PROVIDING A POLYGON
+# use getData function to get a specific polygon
+brazil <- getData("GADM", country = "BRA", level = 0)
+plot(brazil)
+# you can also import your own polygons
+# place brazil into sampling.area argument
+PA.points <- sampleOccurrences(my.first.species,
+                               n = 30,
+                               type = "presence-absence",
+                               sampling.area = "Brazil")
+### ERROR: unable to plot polygon:
+  ## Please provide to sampling.area either
+      # the names of countries, region and/or continents in which to sample
+      # SpatialPolygons or SpatialPolygonsDataFrame
+      # an extent in which the sampling will take place
+### not registering the spatialpolygon dataframe but works with region/continent
+
+# too zoomed out, so you need to manually limit plot region
+# first get dataframe of occurrence points
+occ <- PA.points$sample.points
+
+# specify the x,y coordinates
+plot(my.first.species$pa.raster, 
+     xlim = c(-80, -20),
+     ylim = c(-35, 5))
+# add the brazil boarder
+plot(brazil, add=T)
+occ$Observed
+# plot the occurrence points from the dataframe
+  # presence points from dataframe
+points(occ[occ$Observed == 1, c("x", "y")], pch = 16, cex = .8)
+  # absence points from dataframe
+points(occ[occ$Observed == 0, c("x", "y")], pch = 1, cex = .8)
+# shows Brazil region zoomed in with occurrence dataframe
+
+dev.off()
+
+# APPROACH 3: EXTENT OBJECT
+# use extent function (xmin, xmax, ymin, ymax)
+my.extent <- extent(-80, -20, -35, -5)
+PA.points <- sampleOccurrences(my.first.species,
+                               n = 30,
+                               type = "presence-absence",
+                               sampling.area = my.extent)
+### ERROR: same as before, not reading my.extent in sampling area argument
+
+# if worked, then you would plot
+PA.points <- sampleOccurrences(my.first.species,
+                               n = 30,
+                               type = "presence-absence",
+                               sampling.area = my.extent)
+plot(my.extent, add = TRUE)
+
+dev.off()
+
+#-------------------------------------------------------------------------------
+# SECTION 7.3: SAMPLING BIASES
+
+# SECTION 7.3.1 (BIAS 1): DETECTION PROBABILITY
+# detection.probability argument lets you customize detection probability (0 -1)
+
+# EXAMPLE: Rare species: low detection probability
+  # Presence/absence type
+PA.points <- sampleOccurrences(my.first.species,
+                               sampling.area = "Brazil",
+                               n = 50,
+                               type = "presence-absence",
+                               detection.probability = 0.3)
+PA.points
+# some points in real (1) are observed as absent (0)
+
+  # Presence-only type
+PO.points <- sampleOccurrences(my.first.species,
+                               sampling.area = "Brazil",
+                               n = 50,
+                               type = "presence only",
+                               detection.probability = 0.3)
+PO.points
+# lower number of sampled points
+# only a fraction are sample as presence points
+# NA = no information
+
+dev.off()
+
+#-------------------------------------------------------------------------------
+# SECTION 7.3.2 (BIAS 1 CONT'D): Detection Probability as a Function of Environmental Suitability
+# if you want to make the detection probability dependent on the env. suitability
+  # meaning that cells will be weight by env. suitability:
+    # less suitable cells = less chance of detection
+  # higher env. suitability -> greater population size -> larger detection probability
+
+# I.E. if species has detection probability = 0.5
+  # detection probability for 1 env. suitable cell/pixel = 1
+  # detection probability for 0.5 env. suitable cell/pixel = 0.25
+# no occurrence points will be detected outside distribution range, regardless of
+  # env. suitability
+
+# you can either set detection.probability argument
+  # OR you can set detection.probability = 1 and correct.by.suitability = TRUE
+  # this would set detection probability = env. suitability
+PA.points <- sampleOccurrences(my.first.species,
+                               sampling.area = "Brazil",
+                               n = 100,
+                               type = "presence-absence",
+                               detection.probability = 1,
+                               correct.by.suitability = TRUE,
+                               plot = FALSE)
+# don't plot right away because we want a more zoomed in plot
+
+# retrieve occurrencec data frame
+occ <- PA.points$sample.points
+
+# and plot
+plot(my.first.species$suitab.raster, 
+     xlim = c(-80, -20),
+     ylim = c(-35, 5))
+plot(brazil, add = TRUE)
+points(occ[occ$Observed == 1, c("x", "y")], pch = 16, cex = .8)
+points(occ[occ$Observed == 0, c("x", "y")], pch = 1, cex = .8)
+# presence/absence with detection probability = env. suitability
+
+dev.off()
+
+#-------------------------------------------------------------------------------
+# SECTION 7.3.3 (BIAS 2): ERROR PROBABILITY
+# error probability argument = probability of finding species where it's absent
+PA.points <- sampleOccurrences(my.first.species,
+                               sampling.area = "Brazil",
+                               n = 20,
+                               type = "presence-absence",
+                               error.probability = 0.3)
+PA.points
+# shows points of real = 0 and observed = 1
+
+# Error probability useless for presence-only plot since sampling only occurs
+  # within boundaries of species distribution range
+  # To have errors for presence-only: make presence/absence and use only presence
+    # points obtained
+
+# There is an interaction between detection probability and error probability
+  # if species is present in cell but not detected, presence can still be attributed
+    # due to error.
+# EXAMPLE: low detection probability and high error probability
+PA.points <- sampleOccurrences(my.first.species,
+                               sampling.area = "Brazil",
+                               n = 20,
+                               type = "presence-absence",
+                               detection.probability = 0.2,
+                               error.probability = 0.8)
+PA.points
+# pixels had species not detected but due to high error probability, they were
+  # counted as observed presences
+
+dev.off()
+
+#-------------------------------------------------------------------------------
+# SECTION 7.3.4 (BIAS 3): UNEVEN SAMPLING INTENSITY
+# uneven sampling intensity = higher sampling frequency in some area than others
+# components include:
+  # bias = general area of bias (country, continent, region)
+  # bias.strength = degree of bias in that area (50 = sampling is 50 times more intenste)
+  # bias.area = specific area (i.e. Colombia, South America, Eurasia)
+
+# EXAMPLE
+PO.points <- sampleOccurrences(my.first.species,
+                               n = 100, 
+                               bias = "continent",
+                               bias.strength = 20,
+                               bias.area = "South America")
+# shows higher sampling frequency in South America
+
+# EXAMPLE: strong bias in certain countries
+PO.points <- sampleOccurrences(my.first.species,
+                               n = 100, 
+                               bias = "country",
+                               bias.strength = 20,
+                               bias.area = c("Mexico", "Colombia"))
+dev.off()
+
+# to manually draw bias location
+PO.points <- sampleOccurrences(my.first.species,
+                               n = 100, 
+                               bias = "extent",
+                               bias.strength = 50,
+                               bias.area = NULL)
+
+dev.off()
+
+# bias = "manual" : manually define weights for all the cells
+  # you need to provide a raster of weights to weights argument
+# EXAMPLE: create a raster of weights with the weight depending on area of each cell
+weight.raster <- area(worldclim)
+
+plot(weight.raster)
+plot(getMap(), add = TRUE)
+PO.points <- sampleOccurrences(my.first.species,
+                               n = 100, 
+                               bias = "manual",
+                               weights = weight.raster)
+### SAME ERROR AS BEFORE, not registering the weight.raster
+
+dev.off()
+
+# SAMPLING MULTIPLE RECORDS IN SAME CELLS
+# you need to let function sample repeatedly in the same cells
+PO.points <- sampleOccurrences(my.first.species,
+                               n = 1000, 
+                               replacement = TRUE,
+                               plot = FALSE)
+# add # of duplicated records
+length(which(duplicated(PO.points$sample.points[, c("x", "y")])))
+
+#-------------------------------------------------------------------------------
+# SECTION 7.4: DEFINING THE SAMPLE PREVALENCE
+# sample prevalence = proportion of samples in which species has been found
+  # DIFFERENT FROM SPECIES PREVALENCE
+
+# EXAMPLE: 50% presence points, 50% absence points
+PA.points <- sampleOccurrences(my.first.species,
+                               n = 30,
+                               type = "presence-absence",
+                               sample.prevalence = 0.5)
+
+PA.points
+# shows 50% sample prevalence
+
+dev.off()
+
+################################################################################
+# SECTION 8: DISPERSAL BIAS
+# assumption: species are in equilibrium with their env., meaning they're supposed
+  # to occupy full range of suitable env. conditions
+# reality: other interactions come into play (BAM): biotic, movement
+
+# limitDistribution function = introduce dispersal bias
+
+# EXAMPLE: species originates in South America, but can't disperse due to oceans
+# First create VS
+# Formatting of the response functions
+my.parameters <- formatFunctions(bio1 = c(fun = 'dnorm', mean = 250, sd = 50),
+                                 bio12 = c(fun = 'dnorm', mean = 4000, sd = 2000))
+
+# Generation of the virtual species
+my.first.species <- generateSpFromFun(raster.stack = worldclim[[c("bio1", "bio12")]],
+                                      parameters = my.parameters)
+
+# Conversion to presence-absence
+my.first.species <- convertToPA(my.first.species,
+                                beta = 0.7, plot = FALSE)
+
+# Add dispersal bias to species distribution
+my.first.species <- limitDistribution(my.first.species, 
+                                      geographical.limit = "continent",
+                                      area = "South America",
+                                      plot = FALSE)
+
+str(my.first.species)
+
+# plot theoretical distribution and realized distribution
+par(mfrow = c(2, 1))
+plot(my.first.species$pa.raster, main = "Theoretical Distribution")
+plot(my.first.species$occupied.area, main = "Realized Distribution")
+
+dev.off()
+
+# EXAMPLE: limiting to countries
+my.sp1 <- limitDistribution(my.first.species, 
+                            geographical.limit = "country",
+                            area = c("Brazil", "Venezuela"))
+# can do same with polygon and extent (if they work)
+
+dev.off()
+
+#-------------------------------------------------------------------------------
+# SECTION 8.3: SAMPLING OCCURRENCE POINTS IN DISPERSAL-LIMITED DISTRIBUTION
+# how to add your sampling points to dispersal limitations created
+
+# Example: dispersal limitation in South American
+my.first.species <- limitDistribution(my.first.species, 
+                                      geographical.limit = "continent",
+                                      area = "South America",
+                                      plot = FALSE)
+sampleOccurrences(my.first.species, n = 30)
+
+dev.off()
