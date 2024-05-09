@@ -37,6 +37,8 @@ library(virtualspecies)
 
 ################################################################################
 # PART 1: Import environmental data/variables
+# Purpose: to import environmental data to be used for observation of vs suitability
+  # ... in env. and geo. space
     # A: bio variables
     # B: elevation and land cover
 
@@ -77,7 +79,7 @@ names(worldclim)
 # BIO17 = Precipitation of Driest Quarter
 # BIO18 = Precipitation of Warmest Quarter
 # BIO19 = Precipitation of Coldest Quarter
-
+rename(worldclim[[1]], meantemp = wc2.1_10m_bio_1)
 plot(worldclim)
 
 # to rename the variables
@@ -97,6 +99,7 @@ plot(meantemp)
 plot(annualprecip)
 
 dev.off()
+
 #-------------------------------------------------------------------------------
 # B: Import elevation data and forest land cover
 # data source (elevation): Shuttle Radar Topography Mission (SRTM)
@@ -141,22 +144,22 @@ trees
 
 ###############################################################################
 # PART 2: variable correlation test to test for multicollinearity
+# Purpose: to compare the indepedent variables and test for mulitcollinearity
+  # ... in order to avoid redundancy and overfitting
 # package: usdm
 # variance inflation factor (VIF): measure of the degree of multicollinearity
   # ... of one regressor with the other regressors in a linear regression
 
 # vifcor() runs a correlation test and VIF test
-vifcor(worldclim, th=0.8, keep = NULL, method = 'pearson')
+vifcor(worldclim, th=0.7, keep = NULL, method = 'pearson')
   # th = threshold (0.9 is default)
   # keep = if you want to keep a variable regardless of correlation
   # method = method used to calculate pairwise correlation (pearson is default)
 
-# test revealed following 9 remaining variables with threshold lower than 0.8:
+# test revealed following 9 remaining variables with threshold lower than 0.7:
   # BIO2 = Mean Diurnal Range (Mean of monthly (max temp - min temp))
   # BIO3 = Isothermality (BIO2/BIO7) (×100)
   # BIO8 = Mean Temperature of Wettest Quarter
-  # BIO9 = Mean Temperature of Driest Quarter
-  # BIO13 = Precipitation of Wettest Month
   # BIO14 = Precipitation of Driest Month
   # BIO15 = Precipitation Seasonality (Coefficient of Variation)
   # BIO18 = Precipitation of Warmest Quarter
@@ -175,6 +178,8 @@ vifcor(worldclim, th=0.8, keep = NULL, method = 'pearson')
 
 ################################################################################
 # PART 3: Define Alpine conditions per Koeppen Geiger Climate (KGC) zones
+# Purpose: to determine statistical characteristics of variables from an Alpine
+  # ... climate to fit into the VS alpine creation using an objective method
   # A: import Koeppen Geiger Climate data frame
   # B: convert variable rasters into data frames
   # C: merge all data frames together
@@ -204,10 +209,11 @@ dev.off()
 #_______________________________________________________________________________
 # REMAINING TASKS (THESIS EXPLANATIONS)
   # 1) explain KGC zones
-  # 2) find better kgc raster to plot
+  # 2) remember to set working directory for any external files
+  # 3) find better kgc raster to plot
 
 #-------------------------------------------------------------------------------
-#B: Convert variable rasters into data frames
+# SECTION B: Convert variable rasters into data frames
 # package: base, dplyr
 
 # convert elevation to df
@@ -240,7 +246,6 @@ glimpse(precip_df)
 precip_df <- rename(precip_df, annualprecip = wc2.1_10m_bio_12)
 colnames(precip_df)
 
-
 #_______________________________________________________________________________
 # REMAINING TASKS (THESIS)
   # 1) understand xy=TRUE argument
@@ -249,8 +254,8 @@ colnames(precip_df)
   # 1) should I use the variables that passed the correlation test?
 
 #-------------------------------------------------------------------------------
-# D: Filter out data frames and variables based on KGC Alpine classification
-# Alpine Conditions = ET + higher elevation + 0% tree cover (above tree line)
+# SECTION D: Filter out data frames and variables based on KGC Alpine classification
+# Alpine Conditions = ET + high elevation + 0% tree cover (above tree line)
 # packages: dplyr
 
 # kgc_df: select only ET classifications
@@ -265,9 +270,9 @@ summary(trees_df_0)
 elev_df_100 <- filter(elev_df, elev > 100)
 summary(elev_df_100)
 
-
-#ppp <- filter(pp, between(pp$bio1, 0, 100))
-#summary(ppp)
+# filtering for meantemp
+# ppp <- filter(pp, between(temp_df$bio1, 0, 10))
+# summary(ppp)
 
 # par(mfrow = c(1,2))
 # plot(gg)
@@ -287,8 +292,8 @@ summary(elev_df_100)
 # merge.data.frame function merges two data frames by common columns or rows
 # common columns for all data frames = coords (x,y)
 df <- merge.data.frame(trees_df_0, kgc_df_ET)
-### ERROR: cannot allocate vector of size 20.4 Gb
-  # Error only occurs when I try to merge the kgc dataframe
+### ERROR: cannot allocate vector of size XXX Gb
+  # Error only occurs when I try to merge the kgc data frame
 
 glimpse(df)
 
@@ -304,7 +309,77 @@ summary(ddff)
 df_full <- merge.data.frame(ddff, trees_df_0)
 summary(df_full)
 
-## Having issues with this section. Same error regarding size.
+## Having issues with this section. Same error regarding size. Need to reduce
+  #... data frame sizes. Always a problem for the kgc data frame but not the others
+
+#_______________________________________________________________________________
+
+# REMAINING TASKS
+  # 1) complete merge of all data frames
+  # 2) observe statistical characteristics of mean temp, precip and elev
+
+# QUESTIONS
+  # 1) does any of this make any sense?
+  # 2) am I using the merge.data.frame function properly?
 
 ################################################################################
-# PART 4: Create virtual species with specified conditions
+# PART 4: Create virtual species with specified Alpine parameters
+# Purpose: using the Alpine environmental conditions found in Part 3, create a
+  # ... VS whose niche suitability aligns with an Alpine climate
+# package: virtual species
+## For this part as of now, I just inputted arbitrary mean and SD numbers for
+  # ... temp and precipitation
+
+# create a raster stack with variables to be used
+alp_stack <- c(meantemp, annualprecip)
+names(alp_stack)
+
+# for this example I just kept mean temp and precip
+
+# determine mean and sd for mean temp variable
+mean(temp_df$meantemp)
+# mean = -4
+sd(temp_df$meantemp)
+# sd = 24.5
+
+# determine mean and sd for precip variable
+mean(precip_df$annualprecip)
+# mean = 550
+sd(precip_df$annualprecip)
+# sd = 652.5
+
+# create custom parameters matching alpine temp and precip conditions
+alp_pmtrs <- formatFunctions(wc2.1_10m_bio_1 = c(fun = "dnorm", mean = -4, sd = 24.5),
+                             wc2.1_10m_bio_12 = c(fun ='dnorm', mean = 550, sd=652.5))
+
+# create PCA with the seven variables to observe which 2 axis will cover the
+  # ...majority of the data
+alp_vs <- generateSpFromFun(raster.stack = c(meantemp, annualprecip),
+                            parameters = alp_pmtrs,
+                            plot = TRUE)
+# creates environmental suitability plot for alpine species
+
+# to view the response functions
+plotResponse(alp_vs)
+
+dev.off()
+
+#_______________________________________________________________________________
+# REMAINING TASKS/ISSUES
+  # 1) use actual alpine conditions
+  # 2) figure out how to change names of temp and precip because they are still
+    # ... coming up as wc2.1_10m_bio_1 and wc2.1_10m_bio_12
+
+# QUESTIONS
+  # 1) Is there a way to customize the vs to alpine conditions using PCA or random
+    # ... generation functions? I used function response function b/c I could alter
+    # ... the mean and sd based on my findings in Part 3
+  # 2) Does the collinearity part (part 2) matter for this if I'm only using mean
+    # ... temp and precip variables?
+
+#-------------------------------------------------------------------------------
+# CONVERT TO PRESENCE ABSENCE
+
+alp_pa <- convertToPA(alp_vs,
+                   beta = 0.65, alpha = -0.07,
+                   plot = TRUE)
