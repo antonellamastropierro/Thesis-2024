@@ -326,7 +326,13 @@ summary(df_full)
 # PART 4: Create virtual species with specified Alpine parameters
 # Purpose: using the Alpine environmental conditions found in Part 3, create a
   # ... VS whose niche suitability aligns with an Alpine climate
+# SECTION A: create alpine vs with suitability plot
+# SECTION B: create presence/absence plot
+# SECTION C: create occurences
 # package: virtual species
+
+#-------------------------------------------------------------------------------
+# SECTION A: Create Alpine VS with suitabiity plot
 ## For this part as of now, I just inputted arbitrary mean and SD numbers for
   # ... temp and precipitation
 
@@ -378,8 +384,31 @@ dev.off()
     # ... temp and precip variables?
 
 #-------------------------------------------------------------------------------
-# CONVERT TO PRESENCE ABSENCE
+# SECTION B: Create presence/absence plot
 
-alp_pa <- convertToPA(alp_vs,
-                   beta = 0.65, alpha = -0.07,
-                   plot = TRUE)
+alp_pa <- convertToPA(alp_vs, beta = 0.7, alpha = -0.07, species.prevalence = 0.03,
+                      plot = TRUE)
+# beta = inflection point of curve
+  # lower beta = wider distribution range (increase probability of finding suitable conditions)
+  # higher beta = smaller distribution range (decrease probability of finding suitable conditions)
+# alpha = slope of curve ranging from linear to logistic to threshold like
+# species prevalence: number of places occupied by the species
+    #... out of the total number of available places
+
+# for alpine vs maybe good to make higher beta
+# maybe better to specify species prevalence to 3% since I found documents saying
+  # Alpine occupies 3% of world
+  # alp_pa <- convertToPA(alp_vs, beta = random, alpha = -0.07, species.prevalence = 0.03,
+    # plot = TRUE)
+
+dev.off()
+
+#_______________________________________________________________________________
+# REMAINING TASKS
+  # 1) determine best beta and alpha for alpine vs
+
+# QUESTIONS
+  # 1) is there a function to plot the probability of occurrence and suitability curves?
+
+#-------------------------------------------------------------------------------
+# SECTION C: Sample occurrence points
