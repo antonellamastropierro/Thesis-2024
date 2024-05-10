@@ -394,9 +394,23 @@ dev.off()
 #_______________________________________________________________________________
 # REMAINING TASKS
   # 1) determine best beta and alpha for alpine vs
+  # 2) provide explanations of steps and results (i.e. P/A)
 
 # QUESTIONS
   # 1) is there a function to plot the probability of occurrence and suitability curves?
 
 #-------------------------------------------------------------------------------
 # SECTION C: Sample occurrence points
+# Purpose: to sample presence only points from P/A plot
+
+alp_presence <- sampleOccurrences(alp_pa, n = 30, type = "presence only")
+  # n = # of points to sample
+alp_presence
+  # Type: presence only
+  # Number of points: 30
+  # No sampling bias
+  # Detection probability: 
+  # Probability: 1
+  # Corrected by suitability: FALSE
+  # Probability of identification error (false positive): 0
+
