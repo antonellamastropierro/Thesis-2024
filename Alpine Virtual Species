@@ -2,7 +2,6 @@
   # PART 1: Import environmental data/variables
   # PART 2: Run correlation/VIF test on variables to test for multicollinearity
   # PART 3: Define Alpine conditions per Koeppen Geiger Climate zones
-      ## Issues with Part 3, Section D
   # PART 4: Create virtual species with specified conditions
 
 ################################################################################
@@ -50,7 +49,7 @@ library(virtualspecies)
 worldclim <- worldclim_global(var="bio", res=10, path = tempdir())
 # var = variable (i.e. temp, prec) - bio = all 
 # res = resolution
-# path = where to save data
+# path = where to save imported data
 
 worldclim
 # class = spatraster
@@ -79,10 +78,13 @@ names(worldclim)
 # BIO17 = Precipitation of Driest Quarter
 # BIO18 = Precipitation of Warmest Quarter
 # BIO19 = Precipitation of Coldest Quarter
-rename(worldclim[[1]], meantemp = wc2.1_10m_bio_1)
+
+# just change the names now for meantemp and annualprecip rasters
+names(worldclim[[c(1, 12)]]) <- c("meantemp", "annualprecip")
 plot(worldclim)
 
-# to rename the variables
+
+# to isolate out the mean temp and precip raster
   # BIO1 = avg temperature
 meantemp <- worldclim[[1]]
 plot(meantemp)
@@ -194,6 +196,7 @@ vifcor(worldclim, th=0.7, keep = NULL, method = 'pearson')
 
 kgc_df <- climatezones
 # dataframe of kgc and coordinates
+glimpse(kgc_df)
 # ET = Polar tundra
 
 # plot kgc map
@@ -234,17 +237,9 @@ glimpse(trees_df)
 temp_df <- as.data.frame(meantemp, xy=TRUE)
 glimpse(temp_df)
 
-# rename column to meantemp
-temp_df <- rename(temp_df, meantemp = wc2.1_10m_bio_1)
-colnames(temp_df)
-
 # convert precip to df
 precip_df <- as.data.frame(annualprecip, xy=TRUE)
 glimpse(precip_df)
-
-# rename column to annualprecip
-precip_df <- rename(precip_df, annualprecip = wc2.1_10m_bio_12)
-colnames(precip_df)
 
 #_______________________________________________________________________________
 # REMAINING TASKS (THESIS)
@@ -262,23 +257,21 @@ colnames(precip_df)
 kgc_df_ET <- filter(kgc_df, Cls == "ET")
 summary(kgc_df_ET)
 
+# rename the lat/lon columns to match with the other data frames
+kgc_df_ET <- rename(kgc_df_ET, x = Lat)
+kgc_df_ET <- rename(kgc_df_ET, y = Lon)
+colnames(kgc_df_ET)
+
 # trees_df: select only 0 tree cover
-trees_df_0 <- filter(trees_df, trees ==0)
+trees_df_0 <- filter(trees_df, trees == 0)
 summary(trees_df_0)
 
 # elev_df: select elev > 0
 elev_df_100 <- filter(elev_df, elev > 100)
 summary(elev_df_100)
 
-# filtering for meantemp
+# in case I need to filter for mean temp
 # ppp <- filter(pp, between(temp_df$bio1, 0, 10))
-# summary(ppp)
-
-# par(mfrow = c(1,2))
-# plot(gg)
-# plot(elev)
-# gg <- merge.data.frame(elev_df, trees_df)
-# colnames(gg)
 
 #_______________________________________________________________________________
 # REMAINING TASKS:
@@ -291,32 +284,33 @@ summary(elev_df_100)
 
 # merge.data.frame function merges two data frames by common columns or rows
 # common columns for all data frames = coords (x,y)
-df <- merge.data.frame(trees_df_0, kgc_df_ET)
-### ERROR: cannot allocate vector of size XXX Gb
-  # Error only occurs when I try to merge the kgc data frame
 
+# merge kgc and trees first 
+df <- merge.data.frame(trees_df_0, kgc_df_ET)
+
+summary(df)
 glimpse(df)
 
+# merge with mean temp
 dff <- merge.data.frame(df, temp_df)
 glimpse(dff)
+# eliminate any NAs
 dff <- drop_na(dff)
 
+# merge with annual precip
 ddff <- merge.data.frame(dff, precip_df)
 glimpse(ddff)
 ddff <- drop_na(ddff)
 summary(ddff)
 
-df_full <- merge.data.frame(ddff, trees_df_0)
+# merge with elevation
+df_full <- merge.data.frame(ddff, elev_df_100)
 summary(df_full)
 
-## Having issues with this section. Same error regarding size. Need to reduce
-  #... data frame sizes. Always a problem for the kgc data frame but not the others
+# result is 10 variables that match Alpine conditions
+# the mean and sd of these are shown in Part 4, Section A
 
 #_______________________________________________________________________________
-
-# REMAINING TASKS
-  # 1) complete merge of all data frames
-  # 2) observe statistical characteristics of mean temp, precip and elev
 
 # QUESTIONS
   # 1) does any of this make any sense?
@@ -328,13 +322,13 @@ summary(df_full)
   # ... VS whose niche suitability aligns with an Alpine climate
 # SECTION A: create alpine vs with suitability plot
 # SECTION B: create presence/absence plot
-# SECTION C: create occurences
+# SECTION C: create occurrences
 # package: virtual species
 
 #-------------------------------------------------------------------------------
 # SECTION A: Create Alpine VS with suitabiity plot
-## For this part as of now, I just inputted arbitrary mean and SD numbers for
-  # ... temp and precipitation
+# for this part, I only worked with the two variables, so I used generateSpFromFun()
+  # ... so I could customize the parameters of temp and precip to match Alpine climate
 
 # create a raster stack with variables to be used
 alp_stack <- c(meantemp, annualprecip)
@@ -342,28 +336,28 @@ names(alp_stack)
 
 # for this example I just kept mean temp and precip
 
-# determine mean and sd for mean temp variable
-mean(temp_df$meantemp)
-# mean = -4
-sd(temp_df$meantemp)
-# sd = 24.5
+# determine mean and sd for mean temp variable in Alpine climate
+mean(df_full$meantemp)
+# mean = -9.98
+sd(df_full$meantemp)
+# sd = 1.22
 
-# determine mean and sd for precip variable
-mean(precip_df$annualprecip)
-# mean = 550
-sd(precip_df$annualprecip)
-# sd = 652.5
+# determine mean and sd for precip variable in Alpine climate
+mean(df_full$annualprecip)
+# mean = 237.9
+sd(df_full$annualprecip)
+# sd = 30.89
 
 # create custom parameters matching alpine temp and precip conditions
-alp_pmtrs <- formatFunctions(wc2.1_10m_bio_1 = c(fun = "dnorm", mean = -4, sd = 24.5),
-                             wc2.1_10m_bio_12 = c(fun ='dnorm', mean = 550, sd=652.5))
+alp_pmtrs <- formatFunctions(meantemp = c(fun = "dnorm", mean = -9.98, sd = 1.22),
+                             annualprecip = c(fun ='dnorm', mean = 237.9, sd=30.89))
 
 # create PCA with the seven variables to observe which 2 axis will cover the
   # ...majority of the data
 alp_vs <- generateSpFromFun(raster.stack = c(meantemp, annualprecip),
                             parameters = alp_pmtrs,
                             plot = TRUE)
-# creates environmental suitability plot for alpine species
+# creates environmental suitability plot for Alpine species
 
 # to view the response functions
 plotResponse(alp_vs)
@@ -371,11 +365,6 @@ plotResponse(alp_vs)
 dev.off()
 
 #_______________________________________________________________________________
-# REMAINING TASKS/ISSUES
-  # 1) use actual alpine conditions
-  # 2) figure out how to change names of temp and precip because they are still
-    # ... coming up as wc2.1_10m_bio_1 and wc2.1_10m_bio_12
-
 # QUESTIONS
   # 1) Is there a way to customize the vs to alpine conditions using PCA or random
     # ... generation functions? I used function response function b/c I could alter
@@ -386,8 +375,7 @@ dev.off()
 #-------------------------------------------------------------------------------
 # SECTION B: Create presence/absence plot
 
-alp_pa <- convertToPA(alp_vs, beta = 0.7, alpha = -0.07, species.prevalence = 0.03,
-                      plot = TRUE)
+alp_pa <- convertToPA(alp_vs, beta = 0.7, alpha = -0.07, plot = TRUE)
 # beta = inflection point of curve
   # lower beta = wider distribution range (increase probability of finding suitable conditions)
   # higher beta = smaller distribution range (decrease probability of finding suitable conditions)
@@ -397,8 +385,8 @@ alp_pa <- convertToPA(alp_vs, beta = 0.7, alpha = -0.07, species.prevalence = 0.
 
 # for alpine vs maybe good to make higher beta
 # maybe better to specify species prevalence to 3% since I found documents saying
-  # Alpine occupies 3% of world
-  # alp_pa <- convertToPA(alp_vs, beta = random, alpha = -0.07, species.prevalence = 0.03,
+  # ... Alpine occupies 3% of world
+  # alp_pa <- convertToPA(alp_vs, beta = 'random', alpha = -0.07, species.prevalence = 0.03,
     # plot = TRUE)
 
 dev.off()
