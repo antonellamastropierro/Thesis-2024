@@ -173,9 +173,11 @@ vifcor(worldclim, th=0.7, keep = NULL, method = 'pearson')
   # 2) explain purpose of this step
 
 # QUESTIONS:
-  # 1) how to pick the best threshold?
-  # 2) should I include these variables when determining Alpine conditions?
-  # 2) should I include these variables when creating my VS and omit the ones
+  # 1) is this step even necessary if I'm just working with mean temp and precip to find alpine conditions?
+      # I wanted to at least try it out
+  # 2) how to pick the best threshold?
+  # 3) should I include these variables when determining Alpine conditions?
+  # 4) should I include these variables when creating my VS and omit the ones
       # ... I used to determine Alpine conditions?
 
 ################################################################################
