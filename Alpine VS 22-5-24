@@ -52,6 +52,7 @@ alpine_crs <- st_transform(alpine, crs(worldclim))
 # Crop each bioclimatic variable to the shapefile extent
 worldclim_EUR <- crop(worldclim, alpine_EUR)
 
+
 # Mask the raster using the shapefile
 alpine_EUR_raster <- mask(worldclim_EUR, alpine_EUR)
 
@@ -114,13 +115,29 @@ summarize_all(df, sd)
 #------------------------------------------------------------------------------
 # NOW WE CAN create a VS based on alpine conditions
 
-# first extract each needed variable
+# first create parameters for alpine species
 
-alp_pmtrs <- formatFunctions(df$Isothermality = c(fun = "dnorm", mean = 26.90, sd = 4.95),
-                             df$`Max Temp of Warmest Month` = c(fun ='dnorm', mean = 15.58, sd=2.84),
-                             df$`Mean Temp of Wettest Quarter`= c(fun = "dnorm", mean = 5.03, sd = 5.11),
-                             df$`Mean Temp of Driest Quarter`= c(fun = "dnorm", mean = -2.29, sd = 8.16),
-                             df$`Precip Seasonality`= c(fun = "dnorm", mean = 29.11, sd = 7.93),
-                             df$`Precip of Warmest Quarter`= c(fun = "dnorm", mean = 267.25, sd = 78.24),
-                             df$`Precip of Coldest Quarter`= c(fun = "dnorm", mean = 246.68, sd = 160.15))
+alp_pmtrs <- formatFunctions(x=worldclim_EUR_alpinevar,
+                             "Isothermality" = c(fun = "dnorm", mean = 26.90, sd = 4.95),
+                             "Max Temp of Warmest Month" = c(fun ='dnorm', mean = 15.58, sd=2.84),
+                             "Mean Temp of Wettest Quarter"= c(fun = "dnorm", mean = 5.03, sd = 5.11),
+                             "Mean Temp of Driest Quarter"= c(fun = "dnorm", mean = -2.29, sd = 8.16),
+                             "Precip Seasonality"= c(fun = "dnorm", mean = 29.11, sd = 7.93),
+                             "Precip of Warmest Quarter"= c(fun = "dnorm", mean = 267.25, sd = 78.24),
+                             "Precip of Coldest Quarter"= c(fun = "dnorm", mean = 246.68, sd = 160.15))
 
+alp_vs <- generateSpFromFun(raster.stack = worldclim_EUR_alpinevar,
+                                              parameters = alp_pmtrs,
+                                              plot = TRUE)
+
+
+# create presence/absence plot
+alp_pa <- convertToPA(alp_vs, beta = 0.7, alpha = -0.07, plot = TRUE)
+
+# sample Occurrences
+alp_presence <- sampleOccurrences(alp_pa, n = 30, type = "presence only")
+
+alp_presence
+
+
+# HOW DO I GET A BACKROUND MAP OF EUROPE?
