@@ -241,7 +241,9 @@ summarize_all(EUR_alp_df, sd)
 
 # first create parameters for alpine species using the mean and SD values retrieved
   # ... from part 4
-alp_pmtrs <- formatFunctions(x=biovar_EUR_alpine,
+# the raster used will be the unmasked European biovariable raster to show the
+  # ...VS suitability in relation to all of Europe
+alp_pmtrs <- formatFunctions(x=worldclim_EUR,
                              "Isothermality" = c(fun = "dnorm", mean = 26.90, sd = 4.95),
                              "Max Temp of Warmest Month" = c(fun ='dnorm', mean = 15.58, sd=2.84),
                              "Mean Temp of Wettest Quarter"= c(fun = "dnorm", mean = 5.03, sd = 5.11),
@@ -251,8 +253,6 @@ alp_pmtrs <- formatFunctions(x=biovar_EUR_alpine,
                              "Precip of Coldest Quarter"= c(fun = "dnorm", mean = 246.68, sd = 160.15))
 
 # input the alpine-specific parameters to generate an alpine-specific VS
-# the raster used will be the unmasked European biovariable raster to show the
-  # ...VS suitability in relation to all of Europe
 alp_vs <- generateSpFromFun(raster.stack = worldclim_EUR,
                             parameters = alp_pmtrs,
                             plot = TRUE)
