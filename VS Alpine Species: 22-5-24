@@ -196,6 +196,7 @@ names(worldclim_EUR) <- c("Isothermality", "Max Temp of Warmest Month",
 
 ### QUESTION: these are specific to alpine VS in Europe. Is that okay or should I
   # ...run the collinearity test for global alpine conditions?
+
 ################################################################################
 # PART 4: Retrieve mean and sd values for used bio variables
 # Purpose: in order to create a custom alpine VS
