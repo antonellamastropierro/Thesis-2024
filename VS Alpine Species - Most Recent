@@ -350,10 +350,10 @@ alp_pa <- convertToPA(alp_vs, beta = 0.7, alpha = -0.07, plot = FALSE)
 alp_pa
 # species prevalence = 0.00305, which makes sense
 
-# plot the presence/absence
-plot(alp_pa)
-
-### QUESTION: plot only P/A plot, not all three
+# plot the presence/absence raster
+plot(alp_pa$pa.raster)
+# for suitability: alp_pa$suitab.raster
+# for prob. of occurrence: alp_pa$probability.of.occurrence
 
 dev.off()
 
@@ -361,17 +361,26 @@ dev.off()
 #-------------------------------------------------------------------------------
 # C: Sample occurrence points
 # Purpose: to sample presence only points from P/A plot
+  # Presence only shows realized niche
+
+# to show the number of cells
+raster(alp_pa$pa.raster)
+# number of cells = 92460. This equals the max number of present points
 
 alp_presence <- sampleOccurrences(alp_pa, n = 100, type = "presence only")
 # n = # of points to sample
 alp_presence
 # Type: presence only
-# Number of points: 30
+# Number of points: 100
 # No sampling bias
 # Detection probability: 
 # Probability: 1
 # Corrected by suitability: FALSE
 # Probability of identification error (false positive): 0
+
+### Question: should the sample prevalence be changed?
+
+dev.off()
 
 ### QUESTION: if sampling in Alpine locations, but alpine only covers 3% of world
   #...would isolating and continuously sampling only in Europe be too little?
