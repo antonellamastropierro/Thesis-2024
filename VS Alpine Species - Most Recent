@@ -372,3 +372,6 @@ alp_presence
 # Probability: 1
 # Corrected by suitability: FALSE
 # Probability of identification error (false positive): 0
+
+### QUESTION: if sampling in Alpine locations, but alpine only covers 3% of world
+  #...would isolating and continuously sampling only in Europe be too little?
