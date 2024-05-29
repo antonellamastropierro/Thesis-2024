@@ -180,7 +180,7 @@ biovar_EUR_alpine <- mask(bio_EUR, alpine_EUR, inverse = FALSE)
 plot(biovar_EUR_alpine[[1]])
 # the plot now shows the isolated alpine climate areas in the bio variable plot
 ## REMEMBER TITLE, COLORS, ETC FOR PLOT
-
+names(biovar_EUR_alpine)
 ### QUESTION: BACKGROUND MAP???
 ### QUESTION: Is this right???
 dev.off()
@@ -193,41 +193,49 @@ dev.off()
 # variance inflation factor (VIF): measure of the degree of multicollinearity
 # ... of one regressor with the other regressors in a linear regression
 
+# the bio variable names have to first be changed because the - in their original
+  #...names is viewed as a mathematical expression and will cause an error in the
+  #...colinearity test
+names(biovar_EUR_alpine) <- c("bio1", "bio2", "bio3", "bio4", "bio5", "bio6", "bio7", "bio8", 'bio9', 'bio10',
+                              'bio11', 'bio12', 'bio13', 'bio14', 'bio15', 'bio16', 'bio17', 'bio18', 'bio19')
+names(biovar_EUR_alpine)
+# the names are now changed in the spatraster
+
 # Test the already isolated European alpine-specified variables
 # vifcor() function runs a correlation test and VIF test
-vifcor(biovar_EUR_alpine, th=0.7, keep = NULL, size = 5000,  method = 'pearson')
+vifcor(biovar_EUR_alpine, th=0.7, keep = NULL,  method = 'pearson')
 # th = threshold (0.9 is default)
 # keep = if you want to keep a variable regardless of correlation
+# size = # of cells to be tested (5,000 is default)
 # method = method used to calculate pairwise correlation (pearson is default)
+## THIS test takes a long ass time. Modify sampling size or maybe try different function
 
-# The VIF/Correlation test returned: 3, 5, 8, 9, 15, 18, 19
+# The VIF/Correlation test returned: 3, 5, 8, 9, 13, 15
 # BIO3 = Isothermality (BIO2/BIO7) (×100)
 # BIO5 = Max Temperature of Warmest Month
 # BIO8 = Mean Temperature of Wettest Quarter
 # BIO9 = Mean Temperature of Driest Quarter
+# BIO13 = Precipitation of Wettest Month
 # BIO15 = Precipitation Seasonality (Coefficient of Variation)
-# BIO18 = Precipitation of Warmest Quarter
-# BIO19 = Precipitation of Coldest Quarter
 
-# therefore, these are the 7 bio variables we want to use when creating the alpine VS
+# therefore, these are the 6 bio variables we want to use when creating the alpine VS
 
 # now that the variables that do not have a colinearity problem are found,
   # ... filter out/eliminate the unneeded variables
-biovar_EUR_alpine <- subset(biovar_EUR_alpine, c(3, 5, 8, 9, 15, 18, 19))
+biovar_EUR_alpine <- subset(biovar_EUR_alpine, c(3, 5, 8, 9, 13, 15))
 
 # use the names () function to confirm the changes
 names(biovar_EUR_alpine)
-# it now shoes only have the 7 bio variables identified in the VIF test
+# it now shoes only have the 6 bio variables identified in the VIF test
 
-# change the names of the variables to make it easier
+# change the names of the variables to accurately identify the bio variables
 names(biovar_EUR_alpine) <- c("Isothermality", "Max Temp of Warmest Month", 
                               "Mean Temp of Wettest Quarter", "Mean Temp of Driest Quarter",
-                              "Precip Seasonality", "Precip of Warmest Quarter",
-                              "Precip of Coldest Quarter")
+                              "Precip of Wettest Month", "Precip Seasonality")
 
 # confirm the names are changed
 names(biovar_EUR_alpine)
-# the names now align with the worldclimate descriptions of the variables
+# the names now align with the CHELSA descriptions of the variables
   # ...in the masked biovariable Europe alpine spatraster
 
 
@@ -235,20 +243,19 @@ names(biovar_EUR_alpine)
 
 # do the same filtering with the unmasked bio variable spatraster
   # ... because this raster will be the one used for the VS mapping
-worldclim_EUR <- subset(worldclim_EUR, c(3, 5, 8, 9, 15, 18, 19))
+bio_EUR <- subset(bio_EUR, c(3, 5, 8, 9, 13, 15))
 
 # confirm filtering has beeen successful
-names(worldclim_EUR)
-# now shows only the 7 variables identified in the VIF test
+names(bio_EUR)
+# now shows only the 6 variables identified in the VIF test
 
 # change the names of the variables to match the ones in the masked Europe alpine spatraster
-names(worldclim_EUR) <- c("Isothermality", "Max Temp of Warmest Month", 
-                          "Mean Temp of Wettest Quarter", "Mean Temp of Driest Quarter",
-                          "Precip Seasonality", "Precip of Warmest Quarter",
-                          "Precip of Coldest Quarter")
+names(bio_EUR) <- c("Isothermality", "Max Temp of Warmest Month", 
+                    "Mean Temp of Wettest Quarter", "Mean Temp of Driest Quarter",
+                    "Precip of Wettest Month", "Precip Seasonality")
 
 # confirm that the names have changed
-names(worldclim_EUR)
+names(bio_EUR)
 
 ### QUESTION: these are specific to alpine VS in Europe. Is that okay or should I
   # ...run the collinearity test for global alpine conditions?
@@ -266,32 +273,30 @@ EUR_alp_df <- as.data.frame(biovar_EUR_alpine)
 
 # view the dataframe
 glimpse(EUR_alp_df)
-# now it's a dataframe, showing all the values of each of the 7 variables located
+# now it's a dataframe, showing all the values of each of the 6 variables located
   #... specifically in the alpine climate areas of Europe
 
 # Get the means and SDs of each variable to input later into the VS
 
-# to get the means of all 7 variables at the same time
+# to get the means of all 6 variables at the same time
 colMeans(EUR_alp_df)
-# Isothermality = 26.901819
-# Max Temp of Warmest Month = 15.577946    
-# Mean Temp of Wettest Quarter =  5.025422 
-# Mean Temp of Driest Quarter = -2.294671
-# Precip Seasonality = 29.108434
-# Precip of Warmest Quarter = 267.251813 
-# Precip of Coldest Quarter = 246.677202
+# Isothermality = 0.2320626
+# Max Temp of Warmest Month = 11.7147893    
+# Mean Temp of Wettest Quarter =  2.0501391 
+# Mean Temp of Driest Quarter = -5.4827879
+# Precip of Wettest Month = 210.2364574
+# Precip Seasonality = 30.0971283
 
-# retrieve SD of all 7 variables
+# retrieve SD of all 6 variables
 summarize_all(EUR_alp_df, sd)
-# Isothermality = 4.950437
-# Max Temp of Warmest Month = 2.840423
-# Mean Temp of Wettest Quarter = 5.108197
-# Mean Temp of Driest Quarter = 8.156361
-# Precip Seasonality = 7.926176
-# Precip of Warmest Quarter = 78.2355
-# Precip of Coldest Quarter = 160.1534
+# Isothermality = 0.05526883
+# Max Temp of Warmest Month = 1.813004
+# Mean Temp of Wettest Quarter = 6.142773
+# Mean Temp of Driest Quarter = 7.174399
+# Precip of Wettest Month = 80.24957
+# Precip Seasonality = 8.399545
 
-# the means and SDs have now been determined for the necessary 7 variables
+# the means and SDs have now been determined for the necessary 6 variables
 # these values will be used to create a custom alpine-specific VS
 
 ################################################################################
@@ -310,17 +315,18 @@ summarize_all(EUR_alp_df, sd)
 # ... from part 4
 # the raster used will be the unmasked European biovariable raster to show the
 # ...VS suitability in relation to all of Europe
-alp_pmtrs <- formatFunctions(x=worldclim_EUR,
-                             "Isothermality" = c(fun = "dnorm", mean = 26.90, sd = 4.95),
-                             "Max Temp of Warmest Month" = c(fun ='dnorm', mean = 15.58, sd=2.84),
-                             "Mean Temp of Wettest Quarter"= c(fun = "dnorm", mean = 5.03, sd = 5.11),
-                             "Mean Temp of Driest Quarter"= c(fun = "dnorm", mean = -2.29, sd = 8.16),
-                             "Precip Seasonality"= c(fun = "dnorm", mean = 29.11, sd = 7.93),
-                             "Precip of Warmest Quarter"= c(fun = "dnorm", mean = 267.25, sd = 78.24),
-                             "Precip of Coldest Quarter"= c(fun = "dnorm", mean = 246.68, sd = 160.15))
+alp_pmtrs <- formatFunctions(x=bio_EUR,
+                             "Isothermality" = c(fun = "dnorm", mean = 0.2320626, sd = 0.05526883),
+                             "Max Temp of Warmest Month" = c(fun ='dnorm', mean = 11.7147893, sd = 1.813004),
+                             "Mean Temp of Wettest Quarter"= c(fun = "dnorm", mean = 2.0501391, sd = 6.142773),
+                             "Mean Temp of Driest Quarter"= c(fun = "dnorm", mean = -5.4827879, sd = 7.174399),
+                             "Precip of Wettest Month" = c(fun = "dnorm", mean = 210.2364574, sd = 80.24957),
+                             "Precip Seasonality"= c(fun = "dnorm", mean = 30.0971283, sd = 8.399545))
+# the response function plot automatically comes up
+
 
 # input the alpine-specific parameters to generate an alpine-specific VS
-alp_vs <- generateSpFromFun(raster.stack = worldclim_EUR,
+alp_vs <- generateSpFromFun(raster.stack = bio_EUR,
                             parameters = alp_pmtrs,
                             plot = TRUE)
 # shows the env. suitability for Europe specific to alpine species
@@ -350,10 +356,11 @@ alp_pa <- convertToPA(alp_vs, beta = 0.7, alpha = -0.07, plot = FALSE)
 # alp_pa <- convertToPA(alp_vs, beta = 'random', alpha = -0.07, species.prevalence = 0.03,
 # plot = TRUE)
 alp_pa
-# species prevalence = 0.00305, which makes sense
-
+# species prevalence = 0.000277
+plot(alp_pa)
 # plot the presence/absence raster
 plot(alp_pa$pa.raster)
+# CREATE GOOD COLOR PALETTE
 # for suitability: alp_pa$suitab.raster
 # for prob. of occurrence: alp_pa$probability.of.occurrence
 
@@ -367,10 +374,11 @@ dev.off()
 
 # to show the number of cells
 raster(alp_pa$pa.raster)
-# number of cells = 92460. This equals the max number of present points
+# number of cells = 36973636. This equals the max number of present points
 
 alp_presence <- sampleOccurrences(alp_pa, n = 100, type = "presence only")
 # n = # of points to sample
+# PLOT IS COMPLETELY MESSED UP
 alp_presence
 # Type: presence only
 # Number of points: 100
