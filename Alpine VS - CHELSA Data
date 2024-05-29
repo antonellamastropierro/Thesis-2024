@@ -22,7 +22,15 @@ install.packages("tidyr")
 install.packages("dplyr")
 install.packages("sf")
 install.packages("viridis")
+install.packages("rnaturalearth")
+install.packages("rnaturalearthdata")
 
+# geographic maps
+library(rnaturalearth)
+library(rnaturalearthdata)
+
+# plotting
+library(ggplot2)
 
 # geographic data and analysis
 library(raster)
@@ -59,14 +67,25 @@ library(viridis)
 setwd("~/UNIBO/Internship and Thesis/R Thesis Project/Thesis Data")
 # or setwd("C:/Users/amast/OneDrive/Documents/UNIBO/Internship and Thesis/R Thesis Project/Thesis Data")
 
+# Preliminary Step
+# create a colorblind-inclusive color palette for all the plotting
+vl <- viridis(100, option = "D")
+
+# LEGEND
+# alpine = alpine locations
+# EUR = Europe
+# bio = bio variables
+# df = dataframe
+# vs = virtual species
+
 #-------------------------------------------------------------------------------
 # Section A: upload alpine climate shapefile
 
 # upload the shapefile first in order to be used for the bio variables cropping
-alpine <- st_read("global_alpine_30m_v1_1.shp")
+alp <- st_read("global_alpine_30m_v1_1.shp")
 
 # look at a description of the shapefile
-print(alpine)
+print(alp)
 # Geometry Type: Multipolygon
 # Dimension: XY
 # Extent: xmin: -179.9997 ymin: -55.42102 xmax: 179.9997 ymax: 70.47041
@@ -76,25 +95,43 @@ print(alpine)
 # the project will focus on the alpine climate specifically in Europe
 
 # to filter out only Europe alpine areas
-alpine_EUR <- filter(alpine, continent == "Europe")
+alp_EUR <- filter(alp, continent == "Europe")
 
 # view the extent of the shapefile for later use when cropping the bio variables
-print(alpine_EUR)
+print(alp_EUR)
 # Extent:  xmin: -9.779958 ymin: 36.98059 xmax: 66.89637 ymax: 70.47041
 
 # look at the head and tail of the Europe shapefile to confirm only
 # ... Europe polygons are included
-head(alpine_EUR)
-tail(alpine_EUR)
+head(alp_EUR)
+tail(alp_EUR)
 # confirmed as a Europe-only shapefile
 
 # visualize the new Europe shapefile for confirmation
-plot(alpine_EUR$geometry)
+plot(alp_EUR$geometry)
 # the geometry column is tagged as it contains the polygons
 # not filtering out just the geometry column would result in three of the same plots
 # shows the alpine locations in Europe
 
-#### QUESTION: HOW TO GET A BACKGROUND MAP OF EUROPE??
+# add a background map to the shapefile for better visualization
+# retrieve europe background map from rnaturalearth
+EUR <- ne_countries(continent = "europe")
+
+# plot for confirmation
+plot(EUR$geometry)
+
+# plot the two shapefiles and specify the extent to match the alpine Europe sf extent
+alp_EUR_map <- ggplot() + 
+  geom_sf(data = alp_EUR, fill = 'blue', color = 'blue', alpha = 0.5) +
+  geom_sf(data = EUR, color = 'black', alpha = 0.5) + 
+  coord_sf(xlim = c(-9.779958, 66.89637), ylim = c(36.98059, 70.47041)) +
+  theme_minimal()
+## MODIFY PLOT LATER FOR AESTHETICS
+
+# visualize the plot to see alpine locations specific to European countries
+plot(alp_EUR_map)
+### WEIRD BLUE LINE AT TOP OF PLOT
+
 dev.off()
 
 #-------------------------------------------------------------------------------
@@ -102,7 +139,7 @@ dev.off()
 
 # download the CHELSA bio variables and isolate specifically to Europe
 Chelsa.Clim.download(parameter = "bio", version.var = "2.1",
-                     clipping = TRUE, clip.shapefile = alpine_EUR,
+                     clipping = TRUE, clip.shapefile = alp_EUR,
                      clip.extent = c(-9.779958, 66.89637, 36.98059, 70.47041),
                      stacking.data = TRUE)
 # save.location: default is working directory
@@ -115,6 +152,7 @@ Chelsa.Clim.download(parameter = "bio", version.var = "2.1",
 # list.files function: creates a character vector of the file names
 bio_EUR_rastlist <- list.files(path ="~/UNIBO/Internship and Thesis/R Thesis Project/Thesis Data/bio/ChelsaV2.1Climatologies/clipped_2024-05-28_11-15-37",
                        pattern = "CHELSA", full.names = TRUE)
+## Ask Rocio about what she did or the path to shorten it
 # a character vector has been created which can be converted into a spatraster
 
 # create a spatraster of the cropped bio variables in the character vector
@@ -173,14 +211,14 @@ names(bio_EUR)
   # ... the values located in the alpine climate areas
 
 # use the mask function to isolate only the Europe alpine values of the bio variables
-biovar_EUR_alpine <- mask(bio_EUR, alpine_EUR, inverse = FALSE)
+bio_EUR_alp <- mask(bio_EUR, alp_EUR, inverse = FALSE)
 # mask function(file to me masked, file to mask with)
 
 # plot one of the variables to see if isolation/masking was successful
-plot(biovar_EUR_alpine[[1]])
+plot(bio_EUR_alp[[1]])
 # the plot now shows the isolated alpine climate areas in the bio variable plot
 ## REMEMBER TITLE, COLORS, ETC FOR PLOT
-names(biovar_EUR_alpine)
+names(bio_EUR_alp)
 ### QUESTION: BACKGROUND MAP???
 ### QUESTION: Is this right???
 dev.off()
@@ -196,14 +234,14 @@ dev.off()
 # the bio variable names have to first be changed because the - in their original
   #...names is viewed as a mathematical expression and will cause an error in the
   #...colinearity test
-names(biovar_EUR_alpine) <- c("bio1", "bio2", "bio3", "bio4", "bio5", "bio6", "bio7", "bio8", 'bio9', 'bio10',
+names(bio_EUR_alp) <- c("bio1", "bio2", "bio3", "bio4", "bio5", "bio6", "bio7", "bio8", 'bio9', 'bio10',
                               'bio11', 'bio12', 'bio13', 'bio14', 'bio15', 'bio16', 'bio17', 'bio18', 'bio19')
-names(biovar_EUR_alpine)
+names(bio_EUR_alp)
 # the names are now changed in the spatraster
 
 # Test the already isolated European alpine-specified variables
 # vifcor() function runs a correlation test and VIF test
-vifcor(biovar_EUR_alpine, th=0.7, keep = NULL,  method = 'pearson')
+vifcor(bio_EUR_alp, th=0.7, keep = NULL,  method = 'pearson')
 # th = threshold (0.9 is default)
 # keep = if you want to keep a variable regardless of correlation
 # size = # of cells to be tested (5,000 is default)
@@ -222,19 +260,19 @@ vifcor(biovar_EUR_alpine, th=0.7, keep = NULL,  method = 'pearson')
 
 # now that the variables that do not have a colinearity problem are found,
   # ... filter out/eliminate the unneeded variables
-biovar_EUR_alpine <- subset(biovar_EUR_alpine, c(3, 5, 8, 9, 13, 15))
+bio_EUR_alp <- subset(bio_EUR_alp, c(3, 5, 8, 9, 13, 15))
 
 # use the names () function to confirm the changes
-names(biovar_EUR_alpine)
+names(bio_EUR_alp)
 # it now shoes only have the 6 bio variables identified in the VIF test
 
 # change the names of the variables to accurately identify the bio variables
-names(biovar_EUR_alpine) <- c("Isothermality", "Max Temp of Warmest Month", 
+names(bio_EUR_alp) <- c("Isothermality", "Max Temp of Warmest Month", 
                               "Mean Temp of Wettest Quarter", "Mean Temp of Driest Quarter",
                               "Precip of Wettest Month", "Precip Seasonality")
 
 # confirm the names are changed
-names(biovar_EUR_alpine)
+names(bio_EUR_alp)
 # the names now align with the CHELSA descriptions of the variables
   # ...in the masked biovariable Europe alpine spatraster
 
@@ -257,9 +295,6 @@ names(bio_EUR) <- c("Isothermality", "Max Temp of Warmest Month",
 # confirm that the names have changed
 names(bio_EUR)
 
-### QUESTION: these are specific to alpine VS in Europe. Is that okay or should I
-  # ...run the collinearity test for global alpine conditions?
-
 ################################################################################
 # PART 4: Retrieve mean and sd values for used bio variables
 # Purpose: in order to create a custom alpine VS
@@ -269,17 +304,17 @@ names(bio_EUR)
   # ...to input into our custom alpine VS
 
 # convert the masked Europe alpine climate-specific spatraster into a dataframe
-EUR_alp_df <- as.data.frame(biovar_EUR_alpine)
+bio_EUR_alp_df <- as.data.frame(bio_EUR_alp)
 
 # view the dataframe
-glimpse(EUR_alp_df)
+glimpse(bio_EUR_alp_df)
 # now it's a dataframe, showing all the values of each of the 6 variables located
   #... specifically in the alpine climate areas of Europe
 
 # Get the means and SDs of each variable to input later into the VS
 
 # to get the means of all 6 variables at the same time
-colMeans(EUR_alp_df)
+colMeans(bio_EUR_alp_df)
 # Isothermality = 0.2320626
 # Max Temp of Warmest Month = 11.7147893    
 # Mean Temp of Wettest Quarter =  2.0501391 
@@ -288,7 +323,7 @@ colMeans(EUR_alp_df)
 # Precip Seasonality = 30.0971283
 
 # retrieve SD of all 6 variables
-summarize_all(EUR_alp_df, sd)
+summarize_all(bio_EUR_alp_df, sd)
 # Isothermality = 0.05526883
 # Max Temp of Warmest Month = 1.813004
 # Mean Temp of Wettest Quarter = 6.142773
@@ -326,15 +361,22 @@ alp_pmtrs <- formatFunctions(x=bio_EUR,
 
 
 # input the alpine-specific parameters to generate an alpine-specific VS
-alp_vs <- generateSpFromFun(raster.stack = bio_EUR,
+alp_vs_1 <- generateSpFromFun(raster.stack = bio_EUR,
                             parameters = alp_pmtrs,
                             plot = TRUE)
 # shows the env. suitability for Europe specific to alpine species
 
+
 dev.off()
 
+# to save the first alpine VS generated
+save(alp_vs_1, file = "alp_vs_1")
+
+# to load the alpine VS
+load(file = "alp_vs_1")
+
 # to visualize the response functions that were inputted
-plotResponse(alp_vs)
+plotResponse(alp_vs_1)
 # all gaussian curves. Visualized the peak suitability values for each of the 7 variables
 
 dev.off()
@@ -342,30 +384,31 @@ dev.off()
 # B: Create presence/absence plot
 
 # use converttoPA() function to convert the suitability plot into a binary presence/absence plot
-alp_pa <- convertToPA(alp_vs, beta = 0.7, alpha = -0.07, plot = FALSE)
+alp_pa_1 <- convertToPA(alp_vs_1, beta = 0.7, alpha = -0.07, plot = FALSE)
 # beta = inflection point of curve
 # lower beta = wider distribution range (increase probability of finding suitable conditions)
 # higher beta = smaller distribution range (decrease probability of finding suitable conditions)
 # alpha = slope of curve ranging from linear to logistic to threshold like
 # species prevalence: number of places occupied by the species
 #... out of the total number of available places
-
+conver
 # for alpine vs maybe good to make higher beta
 # maybe better to specify species prevalence to 3% since I found documents saying
 # ... Alpine occupies 3% of world
 # alp_pa <- convertToPA(alp_vs, beta = 'random', alpha = -0.07, species.prevalence = 0.03,
 # plot = TRUE)
-alp_pa
+alp_pa_1
 # species prevalence = 0.000277
-plot(alp_pa)
-# plot the presence/absence raster
-plot(alp_pa$pa.raster)
+plot(alp_pa_1)
+# plot the pa.raster: the presence-absence map, as a Raster object containing 0 (absence) / 1 (presence) / NA
+plot(alp_pa_1$pa.raster)
+alp_pa_1$pa.raster
 # CREATE GOOD COLOR PALETTE
 # for suitability: alp_pa$suitab.raster
 # for prob. of occurrence: alp_pa$probability.of.occurrence
 
-dev.off()
 
+dev.off()
 
 #-------------------------------------------------------------------------------
 # C: Sample occurrence points
@@ -373,13 +416,15 @@ dev.off()
   # Presence only shows realized niche
 
 # to show the number of cells
-raster(alp_pa$pa.raster)
+raster(alp_pa_1$pa.raster)
 # number of cells = 36973636. This equals the max number of present points
 
-alp_presence <- sampleOccurrences(alp_pa, n = 100, type = "presence only")
+alp_presence_1 <- sampleOccurrences(alp_pa_1, n = 100,  sample.prevalence = 0.9,
+                                    correct.by.suitability = TRUE, type = "presence only")
 # n = # of points to sample
 # PLOT IS COMPLETELY MESSED UP
-alp_presence
+print(alp_presence_1)
+
 # Type: presence only
 # Number of points: 100
 # No sampling bias
