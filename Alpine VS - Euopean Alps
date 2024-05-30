@@ -58,7 +58,14 @@ setwd("~/UNIBO/Internship and Thesis/R Thesis Project/Thesis Data")
   # bio = bio variables
   # EUR = European Alps
   # alp = alpine climate locations
+  # vs = virtual species
+  # pa = presence/absence
+  # occ = sample occurrences
   # df = dataframe
+  # rstr = raster
+  # brn = baseline realized niche
+  # occ_rn = samples occurrence realized niche
+
 
 # create color palette
  vl <- viridis(500, option = "D")
@@ -438,11 +445,12 @@ dev.off()
 # B: Create presence/absence plot
 
 # use converttoPA() function to convert the suitability plot into a binary presence/absence plot
-alp_pa_1 <- convertToPA(alp_vs_1, beta = 0.7, alpha = -0.07, plot = FALSE)
+alp_pa_1 <- convertToPA(alp_vs_1, beta = 0.6, alpha = -0.05, plot = FALSE)
 # beta = inflection point of curve
 # lower beta = wider distribution range (increase probability of finding suitable conditions)
 # higher beta = smaller distribution range (decrease probability of finding suitable conditions)
 # alpha = slope of curve ranging from linear to logistic to threshold like
+  # alpha = -0.07 is set as a logistic-like curve
 # species prevalence: number of places occupied by the species
 #... out of the total number of available places
 
@@ -453,7 +461,7 @@ alp_pa_1 <- convertToPA(alp_vs_1, beta = 0.7, alpha = -0.07, plot = FALSE)
 # plot = TRUE)
 alp_pa_1
 # probabilistic method = logistic
-# species prevalence = 0.00066
+# species prevalence = 0.0011
 
 # save presence/absence VS 1
 save(alp_pa_1, file = "VS_EUR/alp_pa_1")
@@ -482,18 +490,16 @@ dev.off()
 raster(alp_pa_1$pa.raster)
 # number of total cells = 388544. This equals the max number of present points
 
-### QUESTION: Doesn't ncells equal values 0 and 1? So presence and absence cells? 
-
-# find the number of cells with value = 1 (present)
+# find the number of cells with value = 1 (present = realized niche cells)
 # first convert to raster
-# alp_pa_1_raster <- raster(alp_pa_1$pa.raster)
+alp_pa_1_raster <- raster(alp_pa_1$pa.raster)
 # now that it's a raster layer, retrieve number of cells with value =1
-# freq(alp_pa_1_raster, value=1)
-# NCells = 233. Does this equal max number of present points for this specific VS?
+freq(alp_pa_1_raster, value=1)
+# NCells = 393. This equals number of baseline realized niches cells
 
 
 # the sampleoccurrence function allows to sample n # of points from the presence points
-alp_sample_1 <- sampleOccurrences(alp_pa_1, n = 100, type = "presence only",
+alp_occ_1 <- sampleOccurrences(alp_pa_1, n = 100, type = "presence only",
                                     correct.by.suitability = TRUE, plot = FALSE)
 # n = # of points to sample, meaning 100 of the 36973636 were sampled
 # sample prevalence = proportion of samples in which the species has been found
@@ -503,7 +509,7 @@ alp_sample_1 <- sampleOccurrences(alp_pa_1, n = 100, type = "presence only",
 
 ### QUESTION: wouldn't sample prevalence be better suited for presence/absence data?
 
-alp_sample_1
+alp_occ_1
 # Type: presence only
 # Number of points: 100
 # No sampling bias
@@ -513,22 +519,23 @@ alp_sample_1
 # Probability of identification error (false positive): 0
 
 #save sample occurrence 1
-save(alp_sample_1, file = "VS_EUR/alp_sample_1")
+save(alp_occ_1, file = "VS_EUR/alp_occ_1")
 
 #load sample occurrence 1
-load(file = "VS_EUR/alp_sample_1")
+load(file = "VS_EUR/alp_occ_1")
 
 # plot the sample points on the European Alps suitability raster
 plot(alp_pa_1$suitab.raster, col = vl)
-points(alp_sample_1$sample.points, col = "black", pch = 19)
+points(alp_occ_1$sample.points, col = "black", pch = 19)
 # some of the occurrence points are observed in low suitability areas
   #... even though correct by suitability is set to TRUE, it only influences
-  #... the sampling towards suitable environments but doesn't completey eliminate it
+  #... the sampling towards suitable environments but doesn't completely eliminate it
   # THIS IS ABIOTIC FACTORS ONLY: a reason for an occurrence outside of it's abiotic
   #... suitability could be due to biotic factors or movement factors, maybe
 ## REMEMBER EDITING PLOT (TITLE, AXES, LEGEND)
 
 dev.off()
+
 ### QUESTION: should z-score normalization be conducted on the 8 bio variable layers before PART 6?
 ################################################################################
 # PART 6: Retrieve Selected Bio Variable Values From Unbiased Realized Niche and Occurrence Points
@@ -538,59 +545,60 @@ dev.off()
   #... to identify the realized niche and occurrence points in environmental space
 # SECTION A: retrieve bio variable values from unbiased realized niche
 # SECTION B: retrieve bio variable values from unbiased occurrence points
+
 #-------------------------------------------------------------------------------
 # SECTION A: retrieve bio variable values from realized niche
 # Realized Niche = Presence Values from the Presence-Absence Plot (alp_pa_1)
 
 # convert virtual species into a raster
-alp_pa_1_raster <- raster(alp_pa_1$pa.raster)
+alp_pa_1_rstr <- raster(alp_pa_1$pa.raster)
 # presence/absence is now a raster layer
 
 # the bio variable values need to be retrieved as well
 # convert each bio variable (8 total) into individual raster layers
-bio_1 <- raster(bio_EUR$Isothermality)
-bio_2 <- raster(bio_EUR$`Temp Seasonality`)
-bio_3 <- raster(bio_EUR$`Min Temp of Coldest Month`)
-bio_4 <- raster(bio_EUR$`Mean Temp of Wettest Quarter`)
-bio_5 <- raster(bio_EUR$`Mean Temp of Driest Quarter`)
-bio_6 <- raster(bio_EUR$`Precip Seasonality`)
-bio_7 <- raster(bio_EUR$`Precip of Warmest Quarter`)
-bio_8 <- raster(bio_EUR$`Precip of Coldest Quarter`)
+bio1_rstr <- raster(bio_EUR$Isothermality)
+bio2_rstr <- raster(bio_EUR$`Temp Seasonality`)
+bio3_rstr <- raster(bio_EUR$`Min Temp of Coldest Month`)
+bio4_rstr <- raster(bio_EUR$`Mean Temp of Wettest Quarter`)
+bio5_rstr <- raster(bio_EUR$`Mean Temp of Driest Quarter`)
+bio6_rstr <- raster(bio_EUR$`Precip Seasonality`)
+bio7_rstr <- raster(bio_EUR$`Precip of Warmest Quarter`)
+bio8_rstr <- raster(bio_EUR$`Precip of Coldest Quarter`)
 # I kept all variables as raster layers for consistency throughout
 
 # to compare the bio variables with the presence values, combine all the raster layers
-fun_niche_raster <- stack(alp_pa_1_raster, bio_1, bio_2, bio_3, bio_4, bio_5,
-                      bio_6, bio_7, bio_8)
+brn_rstr <- stack(alp_pa_1_rstr, bio1_rstr, bio2_rstr, bio3_rstr, bio4_rstr, bio5_rstr,
+                      bio6_rstr, bio7_rstr, bio8_rstr)
 
 # confirm all layers were added
-nlayers(fun_niche_raster)
+nlayers(brn_rstr)
 # 9 layers total
 
 # convert niche raster to dataframe
-fun_niche_df <- as.data.frame(fun_niche_raster, xy=TRUE)
+brn_df <- as.data.frame(brn_rstr, xy=TRUE)
 
 # find the name of the presence/absence column
-glimpse(fun_niche_df)
+glimpse(brn_df)
 # presence/absence column = lyr.1
 
 # filter out the presence-only values (lyr.1 = 1)
-real_niche_df <- filter(fun_niche_df, lyr.1 == 1)
+brn_df <- filter(brn_df, lyr.1 == 1)
 # only presence points = realized niche values
 
 # real_niche_df = a dataframe containing all the bio variable values located in
   #...realized niche
 
 # convert realized niche df back to a realized niche raster
-real_niche_raster <- rasterFromXYZ(real_niche_df[,-3])
+brn_rstr <- rasterFromXYZ(brn_df[,-3])
 # [,-3] indicates to remove the 3rd column (lyr.1) from the raster since no longer
   #... needed
 
 # plot realized niche raster with respect to each bio variable
-plot(real_niche_raster, col=vl)
+plot(brn_rstr, col=vl)
 ## REMEMBER TO EDIT PLOTS
 
 # plot realized niche for just one variable
-plot(real_niche_raster$Isothermality, col=vl)
+plot(brn_rstr$Isothermality, col=vl)
 # REMEMBER TO EDIT PLOTS
 
 dev.off()
@@ -603,10 +611,10 @@ dev.off()
 ### QUESTION: WHY?
 
 # sample points need to be converted into a dataframe first
-sample_df <- as.data.frame(alp_sample_1$sample.points, xy=TRUE)
+occ_1_df <- as.data.frame(alp_occ_1$sample.points, xy=TRUE)
 
-# check it out
-glimpse(sample_df)
+# glimpse the dataframe
+glimpse(occ_1_df)
 
 # the sample points are unbiased, meaning that all Observed = Real
 # so no need to filter out samples with Real & Observed = 1
@@ -617,20 +625,22 @@ glimpse(sample_df)
   # CODE: occ_df <- sample_df[sample_df$Real == 1 & sample_df$Observed == 1, ]
   # The comma after the condition means to keep all columns of the data frame
 
-# convert the bio variables to dataframes
+# convert the 8 bio variables to dataframes
 bio_EUR_df <- as.data.frame(bio_EUR, xy=TRUE)
 
 # merge the occurrence and bio variable data frames together by the coords so
   #...that everything aligns properly and the remaining data frames has the occurrence
   #...points with their respective bio variable values
-occ_bio_df <- merge(bio_EUR_df, occ_df, by = c("x", "y"))
+occ_1_bio_df <- merge(bio_EUR_df, occ_1_df, by = c("x", "y"))
 # result is dataframe containing all bio variable values for the occurrence points
 
 # to convert back to raster
-occ_raster <- rasterFromXYZ(occ_bio_df[,-(12:13)])
+occ_1_rstr <- rasterFromXYZ(occ_1_bio_df[,-(12:13)])
 
 # plot the occurrence points with respect to a bio variable
-plot(occ_raster$Isothermality, col=vl)
+plot(occ_1_rstr$Temp.Seasonality, col=vl)
+points(alp_occ_1$sample.points, col = "black", pch = 19)
+### it looks like it cuts off two of the occurrence plots
 
 dev.off()
 
