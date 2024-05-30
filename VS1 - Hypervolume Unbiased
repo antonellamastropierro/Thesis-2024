@@ -1,0 +1,73 @@
+## Cannot gain access to Kadmon's Roadside Bias Article
+  # Is there a way to access Wiley articles for free?
+
+install.packages("hypervolume")
+library(hypervolume)
+
+#### UNBIASED ####
+# first create a baseline hypervolume associated with the baseline realized niche
+  # dataset: brn_rster = a raster brick containing the presence-only pixels
+  # ...and their 8 bio variables values (8 layers total)
+
+
+# in order to create a hypervolume, the layers need to be standardized first
+# Perform Z-score normalization on the 8 bio variable layers for consistency
+# will allow all layers to have mean = 0 and sd = 1 so that scale is consistent
+  #...and values are comparable between layers
+
+# Z-score normalization on baseline realized niche data
+standardize_layer <- function(layer) {
+  layer_mean <- cellStats(layer, 'mean')
+  layer_sd <- cellStats(layer, 'sd')
+  (layer - layer_mean) / layer_sd
+}
+
+brn_rstr_std <- stack(lapply(1:nlayers(brn_rstr), function(i) {
+  standardize_layer(brn_rstr[[i]])
+}))
+# the layers are now all standardized
+
+# could this work too?
+  # brn_rstr_std <- raster::scale(brn_rstr)
+
+# convert the rasterstack to a data frame
+brn_rstr_std_df <- as.data.frame(brn_rstr_std, xy = TRUE, na.rm = TRUE)
+
+# Create the hypervolume
+brn_hv <- hypervolume_gaussian(brn_rstr_std_df) 
+# builds a Gaussian kernel density estimate on an adaptive grid of random points
+  #...wrapping around the original data points. The bandwidth vector reflects the
+  #...axis-aligned standard deviations of a hyperelliptical kernel.
+
+# Print the hypervolume
+print(brn_hv)
+
+# **** Object of class Hypervolume *****
+# Name: untitled
+# Method: Gaussian kernel density estimate
+### Number of data points (after weighting): 393 ##
+# Dimensionality: 10
+### Volume: 5267.437847 ###
+# Random point density: 164.704554
+# Number of random points: 867571
+# Random point values:
+#  min: 0.000
+# mean: 0.000
+# median: 0.000
+# max:0.000
+# Parameters:
+ # kde.bandwidth: 0.2720775 0.1266694 0.6034012 0.6034012 0.6034012 0.6034012 0.6034012 0.6034012 0.6034012 0.6034012
+# kde.method: silverman
+# samples.per.point: 3698
+# sd.count: 3
+# quantile.requested: 0.95
+# quantile.requested.type: probability
+
+### QUESTION: should the coordinates be removed?
+
+#plot
+plot(brn_hv)
+
+brn_hv@Volume
+# volume = 5267.438
+# data points = 393 (sample points)
