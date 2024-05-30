@@ -529,7 +529,7 @@ points(alp_sample_1$sample.points, col = "black", pch = 19)
 ## REMEMBER EDITING PLOT (TITLE, AXES, LEGEND)
 
 dev.off()
-
+### QUESTION: should z-score normalization be conducted on the 8 bio variable layers before PART 6?
 ################################################################################
 # PART 6: Retrieve Selected Bio Variable Values From Unbiased Realized Niche and Occurrence Points
 # the realized niche (presence/absence) and occurrence points have been found
@@ -537,10 +537,7 @@ dev.off()
   #... from both the realized niche and occurrence points need to be retrieved in order
   #... to identify the realized niche and occurrence points in environmental space
 # SECTION A: retrieve bio variable values from unbiased realized niche
-# SECTION B: determine geographic area of unbiased realized niche
-# SECTION C: retrieve bio variable values from unbiased occurrence points
-# SECTION D: determine geographic area of unbiased occurrence points
-
+# SECTION B: retrieve bio variable values from unbiased occurrence points
 #-------------------------------------------------------------------------------
 # SECTION A: retrieve bio variable values from realized niche
 # Realized Niche = Presence Values from the Presence-Absence Plot (alp_pa_1)
