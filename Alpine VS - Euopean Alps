@@ -1,10 +1,12 @@
-# OBJECTIVE: To create and customize a virtual species living in Alpine conditions in the European Alps
+# OBJECTIVE 1: To create and customize an unbiased virtual species living in an alpine climate in the European Alps
+# OBJECTIVE 2: To determine the environmental (abiotic) variable values and geographic location of the unbiased realized niche of the alpine
+  #... VS in the European Alps.
 # PART 1: Import environmental data/variables
 # PART 2: Isolate alpine env. variables using Europe alpine shapefile
 # PART 3: Run correlation/VIF test on variables to test for multicollinearity
-# PART 4: Retrieve mean and sd values for used bio variables
-# PART 5: Create virtual species with specified conditions
-# PART 6: Convert realized niche and occurrence points to environmental space
+# PART 4: Retrieve mean and standard deviation values for selected bio variables
+# PART 5: Create unbiased virtual species with specified alpine conditions
+# PART 6: Retrieve selected bio variable values from unbiased realized niche and occurrence points
 
 ################################################################################
 # PRELIMINARY STEP 1: INSTALL AND LOAD PACKAGES
@@ -59,7 +61,7 @@ setwd("~/UNIBO/Internship and Thesis/R Thesis Project/Thesis Data")
   # df = dataframe
 
 # create color palette
- vl <- viridis(100, option = "D")
+ vl <- viridis(500, option = "D")
 
 ################################################################################
 # PART 1: Import environmental data/variables
@@ -167,14 +169,10 @@ glimpse(alp_EUR)
 st_bbox(alp_EUR)
 # Bounding box:  xmin = 5.884145 xmax = 13.66984 ymin = 44.03892  ymax = 47.50731
 
-# visualize the new Europe shapefile
-plot(alp_EUR$geometry)
-# the geometry column is tagged as it contains the polygons
-# not filtering out just the geometry column would result in three of the same plots
-# shows the alpine locations in Europe
+# for visualization the European Alpine shapefile, create a background map 
 
-# add a background map to the shapefile for better visualization
-# retrieve europe background map from rnaturalearth
+# add a background map to the shapefile for  visualization
+# retrieve Europe background map from rnaturalearth
 EUR <- ne_countries(continent = "europe")
 
 # plot for confirmation
@@ -189,6 +187,7 @@ ggplot() +
   geom_sf(data = EUR, color = 'black', alpha = 0.5) + 
   coord_sf(xlim = c(5.884145, 13.66984), ylim = c(44.03892, 47.50731)) +
   theme_minimal()
+# plot shows the European Alps alpine climate locations with respect to Europe
 ## MODIFY PLOT LATER FOR AESTHETICS
 
 dev.off()
@@ -256,6 +255,8 @@ ggplot() +
   geom_sf(data = EUR, fill = NA, color = 'black', size = 1) +
   coord_sf(xlim = c(5.884145, 13.66984), ylim = c(44.03892, 47.50731)) +
   theme_minimal()
+# plot shows better visualization of the mean temp of the European Alps' alpine climate
+  #... with respect to Europe
 ## REMEMBER TO MODIFY PLOTS FOR AESTHETICS
 
 dev.off()
@@ -426,7 +427,7 @@ dev.off()
 save(alp_vs_1, file = "VS_EUR/alp_vs_1")
 
 # to load the alpine VS
-# load(file = "VS/alp_vs_1")
+load(file = "VS_EUR/alp_vs_1")
 
 # to visualize the response functions that were inputted
 plotResponse(alp_vs_1)
@@ -454,7 +455,12 @@ alp_pa_1
 # probabilistic method = logistic
 # species prevalence = 0.00066
 
+# save presence/absence VS 1
 save(alp_pa_1, file = "VS_EUR/alp_pa_1")
+
+# load presence/absence VS 1
+load(file = "VS_EUR/alp_pa_1")
+
 
 # plot the presence/absence raster
 plot(alp_pa_1$pa.raster)
@@ -503,27 +509,37 @@ alp_sample_1
 # No sampling bias
 # Detection probability: 
 # Probability: 1
-# Corrected by suitability: FALSE
+# Corrected by suitability: TRUE
 # Probability of identification error (false positive): 0
 
 #save sample occurrence 1
 save(alp_sample_1, file = "VS_EUR/alp_sample_1")
 
-# plot the sample points on the European Alpine biovariable map
-plot(bio_EUR[[1]], col = vl)
+#load sample occurrence 1
+load(file = "VS_EUR/alp_sample_1")
+
+# plot the sample points on the European Alps suitability raster
+plot(alp_pa_1$suitab.raster, col = vl)
 points(alp_sample_1$sample.points, col = "black", pch = 19)
+# some of the occurrence points are observed in low suitability areas
+  #... even though correct by suitability is set to TRUE, it only influences
+  #... the sampling towards suitable environments but doesn't completey eliminate it
+  # THIS IS ABIOTIC FACTORS ONLY: a reason for an occurrence outside of it's abiotic
+  #... suitability could be due to biotic factors or movement factors, maybe
 ## REMEMBER EDITING PLOT (TITLE, AXES, LEGEND)
 
 dev.off()
 
 ################################################################################
-# PART 6: NICHE AND OCCURRENCE POINT CONVERSION TO ENV. SPACE
+# PART 6: Retrieve Selected Bio Variable Values From Unbiased Realized Niche and Occurrence Points
 # the realized niche (presence/absence) and occurrence points have been found
   #... but only observed in geographic space. Therefore, the bio variable values
   #... from both the realized niche and occurrence points need to be retrieved in order
   #... to identify the realized niche and occurrence points in environmental space
-# SECTION A: retrieve bio variable values from realized niche
-# SECTION B: retrieve bio variable values from occurrence points
+# SECTION A: retrieve bio variable values from unbiased realized niche
+# SECTION B: determine geographic area of unbiased realized niche
+# SECTION C: retrieve bio variable values from unbiased occurrence points
+# SECTION D: determine geographic area of unbiased occurrence points
 
 #-------------------------------------------------------------------------------
 # SECTION A: retrieve bio variable values from realized niche
@@ -543,12 +559,16 @@ bio_5 <- raster(bio_EUR$`Mean Temp of Driest Quarter`)
 bio_6 <- raster(bio_EUR$`Precip Seasonality`)
 bio_7 <- raster(bio_EUR$`Precip of Warmest Quarter`)
 bio_8 <- raster(bio_EUR$`Precip of Coldest Quarter`)
+# I kept all variables as raster layers for consistency throughout
 
 # to compare the bio variables with the presence values, combine all the raster layers
 fun_niche_raster <- stack(alp_pa_1_raster, bio_1, bio_2, bio_3, bio_4, bio_5,
                       bio_6, bio_7, bio_8)
 
+# confirm all layers were added
 nlayers(fun_niche_raster)
+# 9 layers total
+
 # convert niche raster to dataframe
 fun_niche_df <- as.data.frame(fun_niche_raster, xy=TRUE)
 
@@ -572,13 +592,14 @@ real_niche_raster <- rasterFromXYZ(real_niche_df[,-3])
 plot(real_niche_raster, col=vl)
 ## REMEMBER TO EDIT PLOTS
 
+# plot realized niche for just one variable
 plot(real_niche_raster$Isothermality, col=vl)
 # REMEMBER TO EDIT PLOTS
 
 dev.off()
 
 #-------------------------------------------------------------------------------
-# SECTION B: retrieve bio variable values from occurrence points
+# SECTION B: retrieve bio variable values from unbiased occurrence points
 
 # same method used for realized niche bio value retrieval doesn't work for the
   #...occurrence points b/c there's no "Z" value
@@ -590,9 +611,14 @@ sample_df <- as.data.frame(alp_sample_1$sample.points, xy=TRUE)
 # check it out
 glimpse(sample_df)
 
-# filter out data frame for points with both Real and Observed = 1
-occ_df <- sample_df[sample_df$Real == 1 & sample_df$Observed == 1, ]
-# The comma after the condition means to keep all columns of the data frame
+# the sample points are unbiased, meaning that all Observed = Real
+# so no need to filter out samples with Real & Observed = 1
+
+# in a situation of biased sampling (presence of false positives and/or false negatives)
+#...the Real =1 and Observed = 1 columns may not match up
+# in such case, the data frame would need to be filtered out for points with both Real and Observed = 1
+  # CODE: occ_df <- sample_df[sample_df$Real == 1 & sample_df$Observed == 1, ]
+  # The comma after the condition means to keep all columns of the data frame
 
 # convert the bio variables to dataframes
 bio_EUR_df <- as.data.frame(bio_EUR, xy=TRUE)
@@ -606,7 +632,21 @@ occ_bio_df <- merge(bio_EUR_df, occ_df, by = c("x", "y"))
 # to convert back to raster
 occ_raster <- rasterFromXYZ(occ_bio_df[,-(12:13)])
 
-# check it out
+# plot the occurrence points with respect to a bio variable
 plot(occ_raster$Isothermality, col=vl)
 
 dev.off()
+
+#################################################################################
+# CONCLUSION:
+  # the alpine climate conditions specific to the European Alps geographic location has been
+  #...isolated and a alpine-specific VS was able to be created using the 8 selected
+  #...non-colinear bio variables.
+  # A presence/absence plot was then created for the alpine VS revealing the realized
+  #...niche of the alpine VS with respect to geographic space
+  # 100 unbiased samples were pulled from the presence/absence plot in order to retrieve
+  #...unbiased occurrence points with respect to geographic space
+  # the alpine VS unbiased realized niche and occurrence points were the filtered
+  #...in order to retrieve their respective bio variable values
+  # This data will be used to create an unbiased realized ecological niche model
+  #...to compare against a biased realized ecological niche model
