@@ -18,7 +18,7 @@ plot(ea_osm$geometry)
 save(ea_osm, file = "alp_shpfiles/ea_osm.shp")
 load("alp_shpfiles/ea_osm.shp")
 
-# cleaned it up as it had some unneccesarry columns with NA values (i.e. barriers, waterways)
+# cleaned it up as it had some unneccesary columns with NA values (i.e. barriers, waterways)
 ea_osm_clean <- ea_osm[, -c(4,5,6,7,8,9)]
 # result is shapefile with 671.8 MB and 793161 obs. of 4 variables
 
@@ -46,7 +46,14 @@ sf_use_s2(FALSE)
 # it didn't work
 
 
-# attempted this as well but didn't work
+# found this online
 sf_use_s2(FALSE)
-ea_osm_planar <- st_make_valid(ea_osm_clean) 
-mask <- st_intersection(ea_osm_planar, EA)
+EA_planar <- st_make_valid(EA)
+ea_osm_planar <- st_make_valid(ea_osm_clean)
+mask <- st_intersection(ea_osm_planar, EA_planar)
+# this one worked
+# WARNING MESSAGE: attribute variables are assumed to be spatially constant throughout all geometries
+# is this ok to work with though??
+
+plot(mask$geometry)
+# the plot does shows the OSM (secondary and tertiary) only within the EA boundary
