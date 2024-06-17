@@ -1,0 +1,327 @@
+# SECTION: PRELIMINARY
+
+# OBJECTIVE 1: Retrieve the AOI (European Alps) shapefile.
+# OBJECTIVE 2: Retrieve and import the environmental variables from CHELSA.
+# OBJECTIVE 3: Isolate Environmental Variables within Alpine Climate Locations in AOI.
+# OBJECTIVE 4: Eliminate Colinear Variables to Reduce Dimension Size
+
+################################################################################
+# LEGEND:
+  # AOI = area of interest (European Alps mountain range)
+  # bio = CHELSA environmental variables
+  # EUR = Europe
+  # alp = alpine climate locations
+  # vs = virtual species
+  # pa = presence/absence
+  # occ = sample occurrences
+  # df = dataframe
+  # rstr = raster
+  # brn = baseline realized niche
+################################################################################
+# PRELIMINARY STEP 1: INSTALL AND LOAD PACKAGES
+
+install.packages("virtualspecies")
+install.packages("raster")
+install.packages("usdm")
+install.packages("tidyr")
+install.packages("dplyr")
+install.packages("sf")
+install.packages("rnaturalearth")
+install.packages("rnaturalearthdata")
+install.packages("ggplot2")
+install.packages("viridis")
+
+# to install and load ClimDatDownloadR for loading CHELSA data
+# function is taken directly from the GitHub page
+if(!require(devtools)) install.packages("devtools")
+library(devtools)
+devtools::install_github("HelgeJentsch/ClimDatDownloadR")
+
+# CHELS data download
+library(ClimDatDownloadR)
+
+# geographic data and analysis
+library(raster)
+
+# mapping geographical data
+library(rnaturalearth)
+library(rnaturalearthdata)
+
+# uncertainty analysis for species distribution models
+library(usdm)
+
+# data manipulation
+library(tidyr)
+library(dplyr)
+
+#plotting
+library(ggplot2)
+
+# read shapefiles
+library(sf)
+
+# generate virtual species distributions
+library(virtualspecies)
+
+# color palette creation
+library(viridis)
+
+#-------------------------------------------------------------------------------
+# PRELIMINARY STEP 2: SET WORKING DIRECTORY
+
+setwd("~/UNIBO/Thesis/R Thesis Project/Thesis Data")
+
+# create color palette
+vl <- viridis(500, option = "D")
+
+################################################################################
+# OBJECTIVE 1: Retrieve the AOI (European Alps) shapefile
+# PURPOSE: to import a shapefile of the delineated European Alp mountain range
+  #... to be used as the AOI
+# AOI Shapefile Source: European Environment Agency (EEA)
+
+# upload a shapefile containing the entire European Alp delineated mountain range
+#...to be used as the area of interest (AOI).
+# the shapefile was already downloaded externally.
+EUR_mtn <- st_read("alp_shpfiles/eu_mtn/m_massifs_v1.shp")
+
+# check the CRS
+st_crs(EUR_mtn)
+# the CRS is not in the correct crs, so it needs to be transformed
+
+# transform shapefile coord to ID 4326
+EUR_mtn <- st_transform(EUR_mtn, 4326)
+st_crs(EUR_mtn)
+# it's now in appropriate CRS
+
+# the current shapefile contains all the mountain rangs in Europe
+print(EUR_mtn$name_mm)
+
+# filter out the delineated European Alp mountiain range, labeled as "Alps"
+AOI <- filter(EUR_mtn, name_mm == "Alps")
+
+# visualize Alp mountain range
+plot(AOI$geometry)
+# the plot shows the delineated European Alp mountain range
+
+# get bounding box of EA mountain range to be used for Objective 2
+st_bbox(AOI)
+# xmin = 4.735802, xmax = 17.000550, ymin = 43.135029, ymax = 48.364782
+
+# save the Alps and European alpine climate shapefiles for easier use later
+save(AOI, file = "alp_shpfiles/eu_mtn/AOI.shp")
+
+# to load the file
+  # load(file="alp_shpfiles/alpineclimate/AOI.shp")
+
+dev.off()
+
+################################################################################
+# OBJECTIVE 2: Retrieve and import the environmental variables from CHELSA.
+# PURPOSE: to import the CHELS bio variables for analysis of the realized niche
+  #...in environmental space.
+# Environmental Variable Source: CHELS
+
+# download the CHELSA bio variables directly and crop to AOI extent
+bio_AOI <- Chelsa.Clim.download(parameter = "bio", version.var = "2.1",
+                     clipping = TRUE, clip.shapefile = AOI,
+                     stacking.data = TRUE)
+# save.location: default is working directory (Thesis Data)
+# parameter: which parameter to be downloaded from CHELS
+  # bio = all parameters
+# bio.var: default is c(1:19) or all 19 bio variables
+# stacking.data set to TRUE to stack all individual bio layers into a multilayer
+
+# upload the CHELSA bio variable data into R
+
+# create a character vector of all 19 variables in order to combine and create a spatraster
+bio_AOI_rastlist <- list.files(path ="bio/ChelsaV2.1Climatologies/clipped_2024-06-17_14-32-48",
+                               pattern = "CHELSA", full.names = TRUE)
+# a character vector has been created which can be converted into a spatraster
+
+# create a spatraster of the cropped bio variables in the character vector
+bio_AOI <- rast(bio_AOI_rastlist)
+
+# Plot one of the variables to confirm cropping
+plot(bio_AOI[[1]])
+# Extent matches the shapefile's extent of Europe
+### REMEMBER TO EDIT PLOT WITH COLORS, TITLE, ETC
+
+# the bio variables are now cropped to the AOI's extent, but need to be isolated to
+  #...the AOI's boundary (delineated European Alp mountain range)
+bio_AOI <- mask(bio_AOI, AOI, inverse=F)
+
+# plot one of the bio rasters for visual confirmation
+plot(bio_AOI[[1]])
+# the bio variables are now selected only within the AOI
+
+print(bio_AOI)
+# class      : SpatRaster 
+# dimensions : 628, 1472, 19  (nrow, ncol, nlayers)
+# resolution : 0.008333333, 0.008333333  (x, y)
+# extent     : 4.733194, 16.99986, 43.13319, 48.36653  (xmin, xmax, ymin, ymax)
+# crs        : +proj=longlat +datum=WGS84 +no_defs 
+
+dev.off()
+
+# bio variables are now cropped to same extent as shapefile but need to be isolated
+# still to alpine condition locations in EURO
+
+# show the current names of the uploaded bio variables
+names(bio_AOI)
+# Per the CHELSA website:
+# BIO1 = Annual Mean Temperature
+# BIO2 = Mean Diurnal Range (Mean of monthly (max temp - min temp))
+# BIO3 = Isothermality (BIO2/BIO7) (×100)
+# BIO4 = Temperature Seasonality (standard deviation ×100)
+# BIO5 = Max Temperature of Warmest Month
+# BIO6 = Min Temperature of Coldest Month
+# BIO7 = Temperature Annual Range (BIO5-BIO6)
+# BIO8 = Mean Temperature of Wettest Quarter
+# BIO9 = Mean Temperature of Driest Quarter
+# BIO10 = Mean Temperature of Warmest Quarter
+# BIO11 = Mean Temperature of Coldest Quarter
+# BIO12 = Annual Precipitation
+# BIO13 = Precipitation of Wettest Month
+# BIO14 = Precipitation of Driest Month
+# BIO15 = Precipitation Seasonality (Coefficient of Variation)
+# BIO16 = Precipitation of Wettest Quarter
+# BIO17 = Precipitation of Driest Quarter
+# BIO18 = Precipitation of Warmest Quarter
+# BIO19 = Precipitation of Coldest Quarter
+
+# to turn into RasterLayer
+# worldclim_raster <- raster(worldclim)
+
+# don't change the names of the bio variables yet because some of them will be
+# ...eliminated. Bio variable names will be changed after multicolinearity test
+
+################################################################################
+# OBJECTIVE 3: Isolate Environmental Variables within Alpine Climate Locations in AOI
+# PURPOSE: The bio variables are now isolated by the AOI but now need to be isolated
+  #... further to the alpine climate locations within the AOI. This information will
+  #...be needed for the alpine VS creation.
+
+# retrieve the alpine climate location shapefile that was externally downloaded
+global_alp <- st_read("alp_shpfiles/alpineclimate/global_alpine_30m_v1_1.shp")
+# this is the global alpine locations
+
+# the project will focus on the alpine climate specifically in the European Alps
+# European Alps alpine climate size: 17,579 km2
+
+# to filter out only Europe alpine areas
+alp_AOI <- filter(global_alp, name == "European Alps")
+
+# view the extent of the shapefile for later use when cropping the bio variables
+print(alp_AOI)
+# Bounding Box:  xmin: 5.884145 ymin: 44.03892 xmax: 13.66984 ymax: 47.50731
+# Continent: Europe
+# Name: European Alps
+
+# visualize the new Europe shapefile for confirmation
+plot(alp_AOI$geometry)
+# the geometry column is tagged as it contains the polygons
+# not filtering out just the geometry column would result in three of the same plots
+# shows the alpine locations in Europe
+
+# save the cropped alpine AOI
+save(alp_AOI, file = "alp_shpfiles/alpineclimate/alp_AOI.shp")
+
+dev.off()
+
+# plot the two alpine climate shapefile with the AOI shapefile for confirmation
+ggplot() + 
+  geom_sf(data = alp_AOI, fill = 'blue', color = 'blue', alpha = 0.5) +
+  geom_sf(data = AOI, color = 'black', alpha = 0.5) + 
+  coord_sf(xlim = c(4.735802, 17.000550), ylim = c(43.135029, 48.364782)) +
+  theme_minimal()
+# the EA alpine climate locations can be observed inside the AOI
+
+dev.off()
+
+# the alpine bio variables now need to be isolated
+# use the mask function to isolate only the bio variables within the AOI alpine climate locations
+bio_AOI_alp <- mask(bio_AOI, alp_AOI, inverse = FALSE)
+# mask function(file to me masked, file to mask with)
+
+# plot one of the variables to see if isolation/masking was successful
+plot(bio_AOI_alp[[1]])
+# the plot now shows the isolated alpine climate areas in the bio variable plot
+## REMEMBER TITLE, COLORS, ETC FOR PLOT
+
+dev.off()
+
+################################################################################
+# OBJECTIVE 4: Eliminate Colinear Variables to Reduce Dimension Size
+# PURPOSE: To eliminate any unneeded variables by comparing the independent variables
+# ... and testing for mulitcollinearity in order to avoid redundancy and overfitting
+
+# the bio variable names have to first be changed because the - in their original
+#...names is viewed as a mathematical expression and will cause an error in the
+#...colinearity test
+names(bio_AOI_alp) <- c("bio1", "bio2", "bio3", "bio4", "bio5", "bio6", "bio7", "bio8", 'bio9', 'bio10',
+                        'bio11', 'bio12', 'bio13', 'bio14', 'bio15', 'bio16', 'bio17', 'bio18', 'bio19')
+names(bio_AOI_alp)
+# the names are now changed in the spatraster
+
+# Test the already isolated European alpine-specified variables
+# vifcor() function runs a correlation test and VIF test
+# variance inflation factor (VIF): measure of the degree of multicollinearity
+# ... of one regressor with the other regressors in a linear regression
+vifcor(bio_AOI_alp, th=0.7, keep = NULL,  method = 'pearson')
+# th = threshold (0.9 is default)
+# keep = if you want to keep a variable regardless of correlation
+# size = # of cells to be tested (5,000 is default)
+# method = method used to calculate pairwise correlation (pearson is default)
+
+# The VIF/Correlation test returned 7 variables: 1, 3, 4, 8, 9, 12, 15
+# BIO1 = Annual Mean Temperature
+# BIO3 = Isothermality (BIO2/BIO7) (×100)
+# BIO4 = Temperature Seasonality (standard deviation ×100)
+# BIO8 = Mean Temperature of Wettest Quarter
+# BIO9 = Mean Temperature of Driest Quarter
+# BIO12 = Annual Precipitation
+# BIO15 = Precipitation Seasonality (Coefficient of Variation)
+
+# therefore, these are the 7 bio variables we want to use when creating the alpine VS
+
+# now that the variables that do not have a colinearity problem are found,
+# ... filter out/eliminate the unneeded variables
+bio_AOI_alp <- subset(bio_AOI_alp, c(1, 3, 4, 8, 9, 12, 15))
+
+# use the names () function to confirm the changes
+names(bio_AOI_alp)
+# it now shoes only have the 7 bio variables identified in the VIF test
+
+# change the names of the variables to accurately identify the bio variables
+names(bio_AOI_alp) <- c("Annual Mean Temp", "Isothermality", "Temp Seasonality",
+                        "Mean Temp of Wettest Quarter", "Mean Temp of Driest Quarter",
+                        "Annual Precip", "Precip Seasonality")
+
+# confirm the names are changed
+names(bio_AOI_alp)
+# the names now align with the CHELSA descriptions of the variables
+# ...in the masked biovariable Europe alpine spatraster
+
+# however, the unmasked Europe biovariable spatraster will be the one used when plotting the VS
+
+# do the same filtering with the unmasked bio variable spatraster
+# ... because this raster will be the one used for the VS mapping
+bio_AOI <- subset(bio_AOI, c(1, 3, 4, 8, 9, 12, 15))
+
+# confirm filtering has been successful
+names(bio_AOI)
+# now shows only the 6 variables identified in the VIF test
+
+# change the names of the variables to match the ones in the masked Europe alpine spatraster
+names(bio_AOI) <- c("Annual Mean Temp", "Isothermality", "Temp Seasonality",
+                    "Mean Temp of Wettest Quarter", "Mean Temp of Driest Quarter",
+                    "Annual Precip", "Precip Seasonality")
+
+# confirm that the names have changed
+names(bio_AOI)
+
+################################################################################
+# CONCLUSION: Now that that the bio variables have been reduced to only non-colinear
+  # ...variables and have been isolated both within the AOI as well as within the alpine
+  #...climate locations within the AOI, an alpine VS can be created with the manipulated data
