@@ -73,6 +73,9 @@ vl <- viridis(500, option = "D")
   #... to be used as the AOI
 # AOI Shapefile Source: European Environment Agency (EEA)
 
+# the AOI is the European Alps
+# AOI size: 192,818 km2
+
 # upload a shapefile containing the entire European Alp delineated mountain range
 #...to be used as the area of interest (AOI).
 # the shapefile was already downloaded externally.
