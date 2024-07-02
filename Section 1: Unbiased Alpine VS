@@ -1,8 +1,8 @@
 # SECTION 1: UNBIASED ALPINE VS
 
 # OBJECTIVE 1: Create and Customize an Alpine Climate-Specific Unbiased VS for the AOI
-# OBJECTIVE 2: Create Presence/Absence (Realized Niche) of VS and Sample First 100 Occurrences
-# OBJECTIVE 3: Determine the Environmental (Abiotic) Variable Values of the Realized Niche of the Alpine VS and of the First 100 Samplings
+# OBJECTIVE 2: Create Presence/Absence (Realized Niche) of VS
+# OBJECTIVE 3: Conduct Initial Sampling Batch of Unbiased Sampling of Occurrences
 
 ################################################################################
 # SECTION 0: PRELIMINARY RECAP
@@ -105,7 +105,7 @@ dev.off()
 save(alp_vs_1, file = "VS_AOI_Unbiased/alp_vs_1")
 
 # to load the alpine VS
-load(file = "VS_AOI_Unbiased/alp_vs_1")
+# load(file = "VS_AOI_Unbiased/alp_vs_1")
 
 # to visualize the response functions that were inputted
 plotResponse(alp_vs_1)
@@ -167,6 +167,177 @@ freq(alp_pa_1$pa.raster)
 
 dev.off()
 
-#-------------------------------------------------------------------------------
-# PART B: Conduct Continuous Unbiased Sampling of Occurrences
+################################################################################
+# OBJECTIVE 3: Conduct Initial Sampling Batch of Unbiased Sampling of Occurrences
+# PURPOSE: The initial sampling batch will be used for HV analysis
 
+# sample for first 100 occurrences
+alp_occ_1 <- sampleOccurrences(alp_pa_1, type = "presence only", n = 100,
+                                 correct.by.suitability = TRUE, plot = FALSE)
+# type = presence only samples
+# correct by suitability = samples collected are influenced by suitaibility
+
+# save the first 100 samples
+save(alp_occ_1, file = "VS_AOI_Unbiased/alp_occ_1")
+
+# load(file = "VS_AOI_Unbiased/alp_occ_1")
+
+# plot against the PA and probability of occurrence for visualization
+par(mfrow = c(1,2))
+plot(alp_pa_1$pa.raster)
+points(alp_occ_1$sample.points)
+
+plot(alp_pa_1$probability.of.occurrence)
+points(alp_occ_1$sample.points)
+# shows some occurrences sampled out of presence points because it's based on
+  #...probability of occurrence
+
+dev.off()
+#-------------------------------------------------------------------------------
+# Continuous Sampling Loop (ONLY WORKS FOR 672 Samples and not more)
+
+ncell(alp_pa_1$pa.raster)
+# number of cells = 924,416
+
+freq(alp_pa_1$pa.raster$lyr.1)
+
+
+# Step 3: Initialize variables
+max_samples <- 673  # Define the maximum number of samples you want to collect
+sampled_cells <- integer(0)  # To keep track of already sampled cells
+unbiased_occurrences <- data.frame()  # Data frame to store sampled occurrences
+
+while(nrow(unbiased_occurrences) < max_samples) {
+  # Sample occurrences in larger batches
+  sampled_occ <- sampleOccurrences(alp_pa_1, type = "presence only", n = 100,
+                                   correct.by.suitability = TRUE, plot = FALSE)
+  
+  # Extract the cell IDs (assuming the cell IDs are stored in 'sample.points' with row names as cell IDs)
+  sampled_cell_ids <- as.numeric(rownames(sampled_occ$sample.points))
+  
+  # Filter out already sampled cells
+  new_cells <- setdiff(sampled_cell_ids, sampled_cells)
+  
+  # If there are no new cells, continue to the next iteration
+  if(length(new_cells) == 0) {
+    next
+  }
+
+  # Convert cell indices to coordinates
+  coords <- xyFromCell(alp_pa_1$pa.raster, new_cells)
+  
+  # Create a data frame for new occurrences
+  new_occurrences <- data.frame(cell = new_cells, x = coords[, 1], y = coords[, 2])
+  
+  # Add new occurrences to the occurrences data frame
+  unbiased_occurrences <- rbind(unbiased_occurrences, new_occurrences)
+  
+  # Update the list of sampled cells
+  sampled_cells <- c(sampled_cells, new_cells)
+  
+  # Break the loop if the maximum number of unique samples is reached
+  if(nrow(unbiased_occurrences) >= max_samples) {
+    break
+  }
+}
+
+# Ensure only the required number of samples is returned
+unbiased_occurrences <- unbiased_occurrences[1:max_samples, ]
+
+# Print the final occurrences data frame
+unbiased_occurrences
+
+save(unbiased_occurrences, file = "VS_AOI_Unbiased/unbiased_occurrences")
+
+################################################################################
+
+max_samples <- 1000  # Define the maximum number of samples you want to collect
+sampled_cells <- integer(0)  # To keep track of already sampled cells
+unbiased_occurrences <- data.frame()  # Data frame to store sampled occurrences
+initial_batch_size <- 100  # Initial batch size
+adjustment_factor <- 1.5  # Factor to increase the batch size
+
+while(nrow(unbiased_occurrences) < max_samples) {
+  # Calculate the batch size ensuring it is a positive integer
+  batch_size <- max(1, min(as.integer(initial_batch_size * adjustment_factor), 1000))
+  
+  # Sample occurrences in larger batches
+  sampled_occ <- sampleOccurrences(alp_pa_1, type = "presence only", n = batch_size,
+                                   correct.by.suitability = TRUE, plot = FALSE)
+  
+  # Extract the cell IDs (assuming the cell IDs are stored in 'sample.points' with row names as cell IDs)
+  sampled_cell_ids <- as.numeric(rownames(sampled_occ$sample.points))
+  
+  # Filter out already sampled cells
+  new_cells <- setdiff(sampled_cell_ids, sampled_cells)
+  
+  # If there are no new cells, continue to the next iteration
+  if(length(new_cells) == 0) {
+    next
+  }
+  
+  # Convert cell indices to coordinates
+  coords <- xyFromCell(alp_pa_1$pa.raster, new_cells)
+  
+  # Create a data frame for new occurrences
+  new_occurrences <- data.frame(cell = new_cells, x = coords[, 1], y = coords[, 2])
+  
+  # Add new occurrences to the occurrences data frame
+  unbiased_occurrences <- rbind(unbiased_occurrences, new_occurrences)
+  
+  # Update the list of sampled cells
+  sampled_cells <- c(sampled_cells, new_cells)
+  
+  # Break the loop if the maximum number of unique samples is reached
+  if(nrow(unbiased_occurrences) >= max_samples) {
+    break
+  }
+}
+
+#################################################################################
+
+max_samples <- 1000  # Define the maximum number of samples you want to collect
+sampled_cells <- integer(0)  # To keep track of already sampled cells
+unbiased_occurrences <- data.frame()  # Data frame to store sampled occurrences
+
+while(nrow(unbiased_occurrences) < max_samples) {
+  # Sample occurrences with presence only and correcting by suitability
+  sampled_occ <- sampleOccurrences(alp_pa_1, type = "presence only", n = 250,
+                                   correct.by.suitability = TRUE, plot = FALSE)
+  
+  # Extract the cell IDs (assuming the cell IDs are stored in 'sample.points' with row names as cell IDs)
+  sampled_cell_ids <- as.numeric(rownames(sampled_occ$sample.points))
+  
+  # Filter out already sampled cells
+  new_cells <- setdiff(sampled_cell_ids, sampled_cells)
+  
+  # If there are no new cells, break the loop
+  if(length(new_cells) == 0) {
+    message("No new unique presence cells found. Exiting loop.")
+    break
+  }
+  
+  # Convert cell indices to coordinates
+  coords <- xyFromCell(alp_pa_1$pa.raster, new_cells)
+  
+  # Create a data frame for new occurrences
+  new_occurrences <- data.frame(cell = new_cells, x = coords[, 1], y = coords[, 2])
+  
+  # Add new occurrences to the occurrences data frame
+  unbiased_occurrences <- rbind(unbiased_occurrences, new_occurrences)
+  
+  # Update the list of sampled cells
+  sampled_cells <- c(sampled_cells, new_cells)
+  
+  # Break the loop if the maximum number of unique samples is reached
+  if(nrow(unbiased_occurrences) >= max_samples) {
+    break
+  }
+}
+
+# Check if we reached the desired number of samples or exited early
+if(nrow(unbiased_occurrences) < max_samples) {
+  message("Unable to collect the desired number of unique samples. Collected ", nrow(unbiased_occurrences), " samples.")
+} else {
+  message("Successfully collected ", max_samples, " unique samples.")
+}
