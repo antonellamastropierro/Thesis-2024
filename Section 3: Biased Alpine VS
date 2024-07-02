@@ -1,0 +1,316 @@
+# SECTION III: BIASED ALPINE VIRTUAL SPECIES
+
+# PRELIMINARY: Retrieve AOI Open Street Map (OSM) with Selected Roads
+# OBJECTIVE 1: Determine the Sampling Probability of Each Sample Point From a Road
+# OBJECTIVE 2: Create a Sampling Probability Raster
+# OBJECTIVE 2: Identify Number of Samples Collected with Road Bias in Place
+
+################################################################################
+# SECTION II: UNBIASED ALPINE HV  - RECAP
+# Extracted and Standardized Total Realized Niche and Initial 100 Occurrence Bio Variables
+# Created and Expanded Unbiased Estimated HV until Stabilization/Depletion of Unique Cells
+
+################################################################################
+# LEGEND:
+# AOI = area of interest (European Alps mountain range)
+# bio = CHELSA environmental variables
+# alp = alpine climate locations
+# df = dataframe
+# pmtrs = parameters
+# vs = virtual species
+# pa = presence/absence
+# occ = occurrences
+# rstr = raster
+# arn = actual realized niche
+# std = standardized
+# OSM = open street map
+################################################################################
+
+# PRELIMINARY: Retrieve AOI Open Street Map (OSM) with Selected Roads
+  # PART A: Upload OSM road map and Filter out secondary and tertiary roads
+    # *map will be already cropped to AOI extent using OSMCONVERT
+    # **Try with both then decide if better to only use secondary
+  # PART B: Mask the filtered OSM to the AOI boundary polygon
+
+#-------------------------------------------------------------------------------
+# INSTALL AND LOAD ADDITIONAL PACKAGES
+# all packages included in the VS1 Unbiased EA project
+
+install.packages("osmdata")
+install.packages("osmextract")
+
+# OTHER PACKAGES USED ARE IN UNBIASED VS1 PORTION
+
+# open street map package to obtain small data set road maps
+library(osmdata)
+### QUESTION: is this package needed if getting osm from osmextract?
+
+# package for extracting large datasets (i.e. countries)
+library(osmextract)
+
+#-------------------------------------------------------------------------------
+# PART A: Upload OSM and Filter out secondary and tertiary roads
+# Map was externally downloaded and already cropped to AOI extent using OSMCONVERT
+
+# the coding use to obtain the OSM shapefile
+# already cropped to the extent of the EA boundary shapefile using OECONVERT
+query <- "SELECT * FROM 'lines' WHERE highway IN ('secondary', 'tertiary')"
+## REMEMBER TO EXPLAIN THIS CODE!!
+ea_osm <- oe_read("alp_shpfiles/europe-latest.osm.pbf", 
+                  query = query, layer = 'lines')
+# function was successful in obtaining the secondary and tertiary roads for the
+#...Alp extent
+
+# plot for confirmation
+plot(ea_osm$geometry)
+
+# saved the file
+save(ea_osm, file = "alp_shpfiles/osm.shp")
+# load("alp_shpfiles/osm.shp")
+
+# cleaned it up as it had some unnecessary columns with NA values (i.e. barriers, waterways)
+osm <- ea_osm[, -c(4,5,6,7,8,9)]
+# result is shapefile with 671.8 MB and 793161 obs. of 4 variables
+
+#-------------------------------------------------------------------------------
+# PART B: Mask the filtered OSM to the AOI boundary polygon
+
+# load the delineated Alp boundary shapefile
+load("alp_shpfiles/AOI.shp")
+
+# Check to confirm CRS of both shapefiles are correct
+st_crs(ea_osm_clean)==st_crs(AOI)
+# returned TRUE
+
+# the OSM streetfile geometries are unable to configure with the Alp boundary shapefi;e
+# the following method switches from spherical to planar in order to mask the OSM roads to
+`#...the EA boundary
+sf_use_s2(FALSE)
+AOI_planar <- st_make_valid(AOI)
+ea_osm_planar <- st_make_valid(osm)
+mask <- st_intersection(ea_osm_planar, AOI_planar)
+# the OSM roads are now shown confined within the EA boundary
+## REMEMBER TO BE CONSISTENT WITH EA/ALP/AOI notation
+## REMEMER TO EXPLAIN THIS PART BETTER!
+
+# WARNING MESSAGE: attribute variables are assumed to be spatially constant throughout all geometries
+# save the shapefile for later use
+save(mask, file = "alp_shpfiles/OSM_AOI.shp")
+# load(file = "alp_shpfiles/OSM_AOI.shp")
+
+# turn spherical geometry back on
+sf_use_s2(T)
+## REMEMBER TO EXPLAIN THIS BETTER!
+OSM_AOI <- mask
+ext(OSM_AOI)
+# 4.74153984570888, 16.9589097481728, 43.135291, 48.350703 (xmin, xmax, ymin, ymax)
+ext(AOI)
+# 4.73580243548169, 17.0005497635928, 43.1350294186821, 48.3647819810701 (xmin, xmax, ymin, ymax)
+
+# plot the OSM within the AOI with colors differentiating the secondary and tertiary roads
+ggplot() + 
+  geom_sf(data = OSM_AOI, aes(color = highway), alpha = 0.5) +
+  geom_sf(data = AOI, color = 'black', alpha = 0.5) + 
+  scale_color_manual(values = c('tertiary' = 'orange', 'secondary' = 'blue')) +
+  theme_minimal()
+# the plot confirms retrieval of secondary and tertiary roads in the AOI (European Alps)
+
+dev.off()
+
+################################################################################
+# OBJECTIVE 1: Determine the Sampling Probability of Each Sample Point From a Road
+# PART A: Create a Distance Raster
+# PART B: Create a Sampling Probability Raster
+
+#-------------------------------------------------------------------------------
+# PART A: Create a Distance Raster
+
+# the current AOI's OSM is in shapefile and needs to be converted to a spatvector
+  #... in order to be converted into a raster
+OSM_AOI_vctr <- vect(OSM_AOI$geometry)
+
+ext(bio_AOI)
+# 4.73319370555001, 16.99986032315, 43.13319391195, 48.36652722435 (xmin, xmax, ymin, ymax)
+ext(OSM_AOI)
+# 4.74153984570888, 16.9589097481728, 43.135291, 48.350703 (xmin, xmax, ymin, ymax)
+
+# create a template raster using a raster layer of the bio variable raster in order
+  # ... to provide the same resolution and extent
+rstr_tmpt <- as(bio_AOI[[1]], "SpatRaster")
+
+# Rasterize the OSM vector using the raster template
+r <- rasterize(OSM_AOI_vctr, rstr_tmpt)
+# this results in "presence" cells where the roads are located
+
+summary(r)
+# NAs = 92288
+# the NAs present are a result of the areas within the extent that are outside the AOI
+
+# determine the distance of each cell to the nearest road (presence cell)
+d <- distance(r, unit = "km") 
+
+# once the distance of each cell to the nearest road is calculated, a raster layer
+  #...containing distance values of each cell can be created
+d_rstr <- raster(d)
+
+# isolate the distance raster layer to the AOI
+d_rstr <- mask(d_rstr, AOI)
+
+plot(d_rstr)
+
+# save the distance raster layer
+save(d_rstr, file = "VS_AOI_Biased/d_rstr")
+
+# load(file = "VS_AOI_Biased/d_rstr")
+
+
+d_rstr$layer
+# extent:  4.733194, 16.99986, 43.13319, 48.36653  (xmin, xmax, ymin, ymax)
+
+# retrieve the distance values from the distance raster layer as well as its coordinates
+d_df <- as.data.frame(rasterToPoints(d_rstr), xy = TRUE)
+
+# retrieve the column containing the distance values as a character class to
+  #...use as a fill for plotting
+d_col <- names(d_df)[3]
+
+# plot the distances from the roads in the AOI with the OSM
+ggplot() +
+  geom_raster(data = d_df, aes_string(x = "x", y = "y", fill = d_col)) +
+  scale_fill_viridis_c(alpha = 1,
+                       begin = 0,
+                       end = 1) +  # Scala di colori per il raster
+  geom_sf(data = OSM_AOI$geometry, color = "black", size = 0.5) +
+  theme_bw() +
+  theme_minimal() +
+  labs(title = "Distance from Roads",
+       fill = "Distance (km)") +
+  coord_sf() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank()
+  )
+
+dev.off()
+
+#-------------------------------------------------------------------------------
+# PART B: Create a Sampling Probability Raster
+# PURPOSE: using the distances from the roads values, create a sampling probability
+  #...raster in order to retrieve a subset of the unbiased occurrence samples that
+  #...are within the 100% sampling probability cells (within 1 km from a road)
+
+# WHY DOES THIS WORK? RERASTERED IT WITHOUT THE MASKING
+d_raster <- raster(d)
+distances <- as.data.frame(d_raster)
+distances
+
+# Sampling probability
+# EXPLAIN THIS
+c <- 1
+sampling_prob <- 1-(((log(c*distances))/(log(max(c*distances)))))
+
+# create a dataframe containg all the sampling probabilities
+sampling_prob <- as.data.frame(sampling_prob)
+
+# Some values are infinite and greater than 1
+# Replace those values with 1 so that no values exceed 1 (100%)
+sampling_prob[sampling_prob == Inf] <- 1
+sampling_prob[sampling_prob > 1] <- 1
+
+# New raster with probability to be sampled instead of distances
+prob_sprstr <- classify(d, cbind(values(d), sampling_prob))
+
+# save the probablility spatraster
+save(prob_sprstr, file = "VS_AOI_Biased/prob_sprstr")
+
+# load(file = "VS_AOI_Biased/prob_sprstr")
+
+
+# plot the sampling probability raster
+# convert the spatraster into a raster layer
+prob_rstr <- raster(prob_rstr)
+
+# crop and mask the raster layer to the AOI
+prob_rstr <- crop(prob_rstr, AOI)
+prob_rstr <- mask(prob_rstr, AOI)
+
+# confirm changes
+plot(prob_rstr)
+
+# save the probablility raster layer
+save(prob_rstr, file = "VS_AOI_Biased/prob_rstr")
+
+# load(file = "VS_AOI_Biased/prob_rstr")
+
+# to create a nicer plot same as distance from roads raster
+prob_df <- as.data.frame(rasterToPoints(prob_rstr), xy = TRUE)
+prob_col <- names(prob_df)[3]
+
+# plot the sampling probability raster along with the roads
+ggplot() +
+  geom_raster(data = prob_df, aes_string(x = "x", y = "y", fill = prob_col)) +
+  scale_fill_viridis_c(alpha = 1,
+                       begin = 0,
+                       end = 1) +  # Scala di colori per il raster
+  geom_sf(data = OSM_AOI$geometry, color = "black", size = 0.5) +
+  theme_bw() +
+  theme_minimal() +
+  labs(title = "Sampling Probability",
+       fill = "Probability") +
+  coord_sf() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank()
+  )
+
+dev.off()
+
+# the points' distances from the roads have now been obtained and the probability
+  #...of sampling can be calculated
+
+################################################################################
+# OBJECTIVE 2: Identify Number of Samples Collected with Road Bias in Place
+
+# convert the occurrence sample points
+coord_occ <- vect(alp_occ_1$sample.points, geom = c("x","y"), crs="epsg:4326")
+
+# Probability of each point to be sampled
+occ_prob <- extract(prob_sprstr, coord_occ, ID = TRUE)
+
+# Add the probability value to the points
+occ_with_prob <- cbind(coord_occ, occ_prob)
+
+occ_with_prob_df <- as.data.frame(occ_with_prob)
+
+# Retrive points only with 100% of probability (within 1 km from roads)
+occ_bias <- occ_with_prob[occ_with_prob$layer == 1, ]
+# only 2 SAMPLES out of 100
+
+# Convert unbiased points to sf object
+unbias_pts <- st_as_sf(alp_occ_1$sample.points, coords = c("x", "y"), crs = 4326)
+
+# Convert biased points to sf object (if not already in sf format)
+bias_pts <- st_as_sf(occ_bias, coords = c("x", "y"), crs = 4326)
+
+ggplot() +
+  geom_raster(data = prob_df, aes_string(x = "x", y = "y", fill = prob_col)) +
+  scale_fill_viridis_c(alpha = 1,
+                       begin = 0,
+                       end = 1) +  # Scala di colori per il raster
+  geom_sf(data = OSM_AOI$geometry, color = "black", size = 0.25) +
+  geom_sf(data = unbias_pts, color = "green", size = 1, shape = 16) +  # Unbiased points
+  geom_sf(data = bias_pts, color = "red", size = 1, shape = 16) +  # Biased points
+  theme_bw() +
+  theme_minimal() +
+  labs(title = "Sampling Probability",
+       fill = "Probability") +
+  coord_sf() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank()
+  )
+
+plot(prob_rstr, col = viridis(500, alpha = 1, begin = 0, end = 1, direction = 1))
+# title("Probability to be sampled", outer=TRUE, line=-1)
+points(alp_occ_1$sample.points, cex = 0.6, pch=19)
+points(occ_bias, col = "red", cex = 0.6, pch=19)
