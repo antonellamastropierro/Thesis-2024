@@ -1,0 +1,243 @@
+# SECTION II: UNBIASED ALPINE HV
+
+# OBJECTIVE 1: Retrieve and Standardize Bio Variables for Analysis
+# OBJECTIVE 2: Create Actual Realized Niche Hypervolume ???
+# OBJECTIVE 3: Create and Expand Unbiased Estimated Hypervolume until Stabilization
+
+################################################################################
+# SECTION I: UNBIASED ALPINE VS  - RECAP
+# Created Suitability Map for Alpine VS
+# Created Presence/Absence (Actual Realized Niche) for Alpine VS
+# Collected Initial Batch of 100 Presence-Only Sampled Occurrences from P/A Based
+  #...on Suitability
+
+################################################################################
+# LEGEND:
+# AOI = area of interest (European Alps mountain range)
+# bio = CHELSA environmental variables
+# alp = alpine climate locations
+# df = dataframe
+# pmtrs = parameters
+# vs = virtual species
+# pa = presence/absence
+# occ = occurrences
+# rstr = raster
+# trn = total realized niche
+# std = standardized
+################################################################################
+
+# OBJECTIVE 1: Retrieve and Standardize Bio Variables for Analysis
+# Purpose: The isolated bio variables of the actual realized niche and first 100 samples
+  #... are needed for HV creation and analysis
+# Realized Niche = Presence Values from the Presence-Absence Plot (alp_pa_1)
+  # PART A: Retrieve and Standardize Actual Realized Niche Bio Variables
+  # PART B: Retrieve and Standardize First 100 Sampled Occurrences Bio Variables
+
+#-------------------------------------------------------------------------------
+# PART A: Retrieve and Standardize Actual Realized Niche Bio Variables
+
+freq(alp_pa_1$pa.raster)
+# convert virtual species into a raster layer
+alp_pa_1_rstr <- raster(alp_pa_1$pa.raster)
+# presence/absence is now a raster layer
+alp_pa_1_rstr$lyr.1
+
+freq(alp_pa_1_rstr, value=1)
+# NCells = 672. This equals number of actual realized niches cells
+freq(alp_pa_1_rstr$lyr.1)
+# 0 = 329965
+# 1 = 672
+# NaN = 593779 <- masked areas of raster
+# QUESTION: why are there NaNs present??
+
+# the bio variable values need to be retrieved as well
+# convert each bio variable (7 total) into individual raster layers
+bio1_rstr <- raster(bio_AOI$`Annual Mean Temp`)
+bio3_rstr <- raster(bio_AOI$Isothermality)
+bio4_rstr <- raster(bio_AOI$`Temp Seasonality`)
+bio8_rstr <- raster(bio_AOI$`Mean Temp of Wettest Quarter`)
+bio9_rstr <- raster(bio_AOI$`Mean Temp of Driest Quarter`)
+bio12_rstr <- raster(bio_AOI$`Annual Precip`)
+bio15_rstr <- raster(bio_AOI$`Precip Seasonality`)
+# I kept all variables as raster layers for consistency throughout
+
+# to compare the bio variables with the presence values, combine all the raster layers
+trn_rstr_1 <- stack(alp_pa_1_rstr, bio1_rstr, bio3_rstr, bio4_rstr,
+                    bio8_rstr, bio9_rstr, bio12_rstr, bio15_rstr)
+
+
+# confirm all layers were added
+nlayers(trn_rstr_1)
+# 8 layers total
+
+# convert total realized niche raster to dataframe
+trn_df_1 <- as.data.frame(arn_rstr_1, xy=TRUE)
+
+# find the name of the presence/absence column
+glimpse(trn_df_1)
+# presence/absence column = lyr.1
+
+# filter out the presence-only values (lyr.1 = 1)
+trn_df_1 <- filter(trn_df_1, lyr.1 == 1)
+# only presence points = realized niche values
+
+# arn_df_1 = a dataframe containing all the bio variable values located in
+#...actual realized niche
+glimpse(trn_df_1)
+
+# remove lyr.1 column and coordinates
+trn_df_1 <- trn_df_1[ , -1:-3]
+
+# now arn_df_1 consists of dataframe of the bio variable values of the actual realized niche
+
+# standardize the ARN bio variables in the dataframe
+# uses the z-score to standardized all variables with mean =0 and sd = 1
+trn_df_1_std <- scale(trn_df_1)
+
+# confirm mean = 0
+summary(trn_df_1_std)
+
+# confirm sd = 1
+summary(sd(trn_df_1_std))
+
+#-------------------------------------------------------------------------------
+# PART B: Retrieve and Standardize First 100 Sampled Occurrences Bio Variables
+
+# first merge bio variables with sample locations
+# convert bio variables into data frames
+bio_AOI_df <- as.data.frame(bio_AOI, xy=T)
+
+glimpse(bio_AOI_df)
+
+# check to see if coords have same decimal places
+glimpse(bio_AOI_df$x)
+glimpse(alp_occ_1$sample.points$x)
+glimpse(bio_AOI_df$y)
+glimpse(alp_occ_1$sample.points$y)
+
+
+# the coordinates have mismatched decimal places
+# round to the same decimal places so you get the bio values for all 672 samples
+bio_AOI_df$x <- round(bio_AOI_df$x, 5)
+bio_AOI_df$y <- round(bio_AOI_df$y, 5)
+alp_occ_1$sample.points$x <- round(alp_occ_1$sample.points$x, 5)
+alp_occ_1$sample.points$y <- round(alp_occ_1$sample.points$y, 5)
+
+# now that the coords are aligned, merge dataframes together by coords (x,y)
+bio_occ_1_df <- merge(bio_AOI_df, alp_occ_1$sample.points, by = c("x", "y"))
+
+glimpse(bio_occ_1_df)
+# result is 100 observations of 11 variables
+
+# check for duplicates in dataframe
+duplicated(bio_occ_1_df$cell)
+
+# eliminate non bio variable columns (coords and real and observed columns)
+bio_occ_1_df <- bio_occ_1_df[ , c(-1,-2, -10, -11)]
+
+# confirm remaining columns are all bio variables
+glimpse(bio_occ_1_df)
+# remaining 7 bio variables columns with 100 occurrences
+
+# standardize the 100 sampled occurrence bio variables in the dataframe
+# uses the z-score to standardized all variables with mean =0 and sd = 1
+bio_occ_1_df_std <- scale(bio_occ_1_df)
+
+# confirm mean = 0
+summary(bio_occ_1_df_std)
+
+# confirm sd = 1
+summary(sd(bio_occ_1_df_std))
+
+################################################################################
+# OBJECTIVE 3: Create and Expand Unbiased Estimated Hypervolume until Stabilization
+
+# Function to calculate hypervolume
+calculate_hypervolume <- function(df) {
+  hv <- hypervolume(df)
+  return(hv@Volume)  # Extract the volume from hypervolume object
+}
+
+
+  
+  # Plot hypervolume vs. number of samples
+  plot_data <- data.frame(samples = seq_along(volumes), volume = volumes)
+  ggplot(plot_data, aes(x = samples, y = volume)) +
+    geom_line() +
+    geom_point() +
+    labs(x = "Number of Samples", y = "Hypervolume Volume") +
+    ggtitle("Hypervolume Evolution")
+  
+  # Return final results
+  return(list(all_samples = all_samples, final_hv_volume = current_hv_volume))
+}
+
+# Example usage:
+# Replace 'alp_pa_1' with your presence absence raster object
+# Replace 'bio_vars' with your loaded bio variables raster stack
+result <- continuous_sampling_plot(alp_pa_1, bio_AOI, bio_occ_1_df_std, max_iterations = 1000, epsilon = 0.01)
+
+
+################################################################################
+################################################################################
+library(hypervolume)
+
+# convert to HV
+arn_HV <- hypervolume_gaussian(arn_df_1_std, name = "Actual Realized Niche Hypervolume")
+arn_HV@Volume
+# arn HV volume = 10457.21
+
+
+dev.off()
+
+#------------------------------------------------------------------------------
+# convert unbiased samples into HV
+
+glimpse(bio_occ_1_df)
+
+# standardize occurrence dataframe
+bio_occ_1_df_std <- scale(bio_occ_1_df)
+
+# Initialize a vector to store the volumes
+volumes <- numeric()
+
+# Incrementally create hypervolumes for increasing sample sizes
+for (i in seq(0, 672, by=2)) {
+
+  # Create the hypervolume using Gaussian kernel density estimation
+  hv <- hypervolume_gaussian(
+    data = bio_occ_1_df_std[1:i, ],
+    name = paste("Hypervolume with", i, "samples"),
+    samples.per.point = 1000,
+    quantile.requested = 0.95,
+    quantile.requested.type = "probability",
+    verbose = FALSE
+  )
+  
+  # Store the volume
+  volumes <- c(volumes, hv@Volume)
+}
+
+# Create a dataframe for plotting
+plot_data <- data.frame(Samples = seq(1, 672, by=10), Volume = volumes)
+
+ggplot(plot_data, aes(x = Samples, y = Volume)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    title = "Hypervolume Volume over Number of Samples",
+    x = "Number of Samples",
+    y = "Hypervolume Volume"
+  ) +
+  theme_minimal()
+hv@Volume
+
+ggplot(plot_data, aes(x = Samples, y = Volume)) +
+  # + geom_point() + if i want to keep the points in
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    title = "Hypervolume Volume over Number of Samples",
+    x = "Number of Samples",
+    y = "Hypervolume Volume"
+  ) +
+  theme_minimal()
