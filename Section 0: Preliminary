@@ -19,10 +19,19 @@ install.packages("usdm")
 install.packages("tidyr")
 install.packages("dplyr")
 install.packages("sf")
+
+# check to see if these packages are needed anymore
 install.packages("rnaturalearth")
 install.packages("rnaturalearthdata")
+
 install.packages("ggplot2")
 install.packages("viridis")
+
+install.packages("hypervolume")
+
+# confirm if OSMDATA is needed anymore
+install.packages("osmdata")
+install.packages("osmextract")
 
 # to install and load ClimDatDownloadR for loading CHELSA data
 # function is taken directly from the GitHub page
@@ -56,11 +65,19 @@ library(sf)
 # generate virtual species distributions
 library(virtualspecies)
 
+# hypervolume anaylsis
+library(hypervolume)
+
+# OSM retrieval
+library(osmdata)
+library(osmextract)
+
 # color palette creation
 library(viridis)
 
 #-------------------------------------------------------------------------------
 # PRELIMINARY STEP 2: SET WORKING DIRECTORY
+
 
 setwd("~/UNIBO/Thesis/R Thesis Project/Thesis Data")
 
@@ -90,10 +107,10 @@ EUR_mtn <- st_transform(EUR_mtn, 4326)
 st_crs(EUR_mtn)
 # it's now in appropriate CRS
 
-# the current shapefile contains all the mountain rangs in Europe
+# the current shapefile contains all the mountain ranges in Europe
 print(EUR_mtn$name_mm)
 
-# filter out the delineated European Alp mountiain range, labeled as "Alps"
+# filter out the delineated European Alp mountain range, labeled as "Alps"
 AOI <- filter(EUR_mtn, name_mm == "Alps")
 
 # visualize Alp mountain range
@@ -108,7 +125,14 @@ st_bbox(AOI)
 save(AOI, file = "alp_shpfiles/eu_mtn/AOI.shp")
 
 # to load the file
-  # load(file="alp_shpfiles/alpineclimate/AOI.shp")
+load(file="alp_shpfiles/eu_mtn/AOI.shp")
+
+extent(AOI)
+# xmin       : 4.735802 
+# xmax       : 17.00055 
+# ymin       : 43.13503 
+# ymax       : 48.36478
+
 
 dev.off()
 
@@ -142,6 +166,7 @@ bio_AOI <- rast(bio_AOI_rastlist)
 plot(bio_AOI[[1]])
 # Extent matches the shapefile's extent of Europe
 ### REMEMBER TO EDIT PLOT WITH COLORS, TITLE, ETC
+ext(bio_AOI)
 
 # the bio variables are now cropped to the AOI's extent, but need to be isolated to
   #...the AOI's boundary (delineated European Alp mountain range)
@@ -222,6 +247,8 @@ plot(alp_AOI$geometry)
 
 # save the cropped alpine AOI
 save(alp_AOI, file = "alp_shpfiles/alpineclimate/alp_AOI.shp")
+
+# load(file = "alp_shpfiles/alpineclimate/alp_AOI.shp")
 
 dev.off()
 
