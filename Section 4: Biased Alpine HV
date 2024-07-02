@@ -1,0 +1,100 @@
+# SECTION IV: BIASED ALPINE HV
+
+# OBJECTIVE 1: Retrieve and Standardize Bio Variables for Analysis
+# OBJECTIVE 2: Create and Expand Unbiased Estimated Hypervolume until Stabilization
+
+################################################################################
+# SECTION III BIASED ALPINE VS  - RECAP
+# Created Distance and Sampling Probability Rasters for Sampling Bias
+# Retrieved Biased Sampling from Unbiased Sampling Points by Incorporating Sampling Bias
+
+################################################################################
+# LEGEND:
+# AOI = area of interest (European Alps mountain range)
+# bio = CHELSA environmental variables
+# alp = alpine climate locations
+# df = dataframe
+# pmtrs = parameters
+# vs = virtual species
+# pa = presence/absence
+# occ = occurrences
+# rstr = raster
+# std = standardized
+################################################################################
+
+# OBJECTIVE 1: Retrieve and Standardize Bio Variables of Biased Points for Analysis
+
+# first merge bio variables with sample locations
+# the bio variables have already been created into a dataframe in Section 2
+
+# create a dataframe of the biased points
+occ_bias_1_df <- as.data.frame(occ_bias_1)
+# Extract the spatial coordinates from the 'coords' attribute
+crds_1 <- st_coordinates(bias_pts)
+
+# Create a dataframe with coordinates
+crds_1_df <- data.frame(X = crds_1[, 1], Y = crds_1[, 2])
+occ_bias_1_df <- cbind(occ_bias_1_df, crds_1_df)
+occ_bias_1_df <- occ_bias_1_df[ , -1:-4]
+
+# rename x,y columns to match with bio variable dataframe
+colnames(occ_bias_1_df) <- c("x", "y")
+
+# make sure all decimal places are correct before merging
+bio_AOI_df$x <- round(bio_AOI_df$x, 5)
+bio_AOI_df$y <- round(bio_AOI_df$y, 5)
+occ_bias_1_df$x <- round(occ_bias_1_df$x, 5)
+occ_bias_1_df$y <- round(occ_bias_1_df$y, 5)
+
+# merge the points and the bio variables together
+bio_bias_1_df <- merge(bio_AOI_df, occ_bias_1_df, by = c("x", "y"))
+
+glimpse(bio_bias_1_df)
+# result is 2 observations of 7 variables
+
+# check for duplicates in dataframe
+duplicated(bio_bias_1_df$cell)
+# no duplicates
+
+# standardize the biased sample occurrence bio variables in the dataframe
+# uses the z-score to standardized all variables with mean =0 and sd = 1
+bio_bias_1_df_std <- scale(bio_bias_1_df)
+
+# confirm mean = 0
+summary(bio_bias_1_df_std)
+
+# confirm sd = 1
+summary(sd(bio_bias_1_df_std))
+
+# all variables in the dataframe have been standardized
+
+################################################################################
+# OBJECTIVE 2: Create Biased Sample HV and Observe Volume Change over Number of Samples
+
+# Initialize a vector to store the volumes
+vol_bias_1 <- numeric()
+
+# Incrementally create hypervolumes for increasing sample sizes
+for (i in seq(0, nrow(bio_bias_1_df_std), by = 1)) {
+  
+  # Create the hypervolume using Gaussian kernel density estimation
+  hv_bias_1 <- hypervolume_gaussian(
+    data = bio_bias_1_df_std[1:i, ]
+  )
+  
+  # Store the volume
+  vol_bias_1 <- c(vol_bias_1, get_volume(hv_bias_1))
+}
+
+# Create a dataframe for plotting
+vol_bias_1_df <- data.frame(Samples = seq(0, nrow(bio_bias_1_df_std), by = 1), Volume = vol_bias_1)
+
+# Plot using ggplot2
+ggplot(vol_bias_1_df, aes(x = Samples, y = Volume)) +
+  geom_smooth(method = "loess", se=F) +  # Adding smoothing
+  labs(
+    title = "Biased Hypervolume 1",
+    x = "Number of Samples",
+    y = "Volume"
+  ) +
+  theme_minimal()
