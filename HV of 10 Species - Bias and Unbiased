@@ -1,0 +1,158 @@
+# PART I: HV of 10 SPECIES - UNBIASED
+# PART II: HV of 10 SPECIES - BIASED
+###############################################################################
+###############################################################################
+# PART I: HV OF 10 SPECIES - UNBIASED
+#-------------------------------------------------------------------------------
+# STEP ONE: CREATE 10 DIFFERENT TOTAL REALIZED NICHES
+
+alp_pa_1 <- convertToPA(alp_vs_1, alpha = -0.05, beta = 0.65, plot = F)
+
+# alp_pa_1
+# alp_pa_2
+# alp_pa_3
+# alp_pa_4
+# alp_pa_5
+# alp_pa_6
+# alp_pa_7
+# alp_pa_8
+# alp_pa_9
+# alp_pa_10
+
+# identical(alp_pa_1, alp_pa_5)
+#------------------------------------------------------------------------------
+# STEP 2: SAMPLE 100 OCCURRENCES FROM EACH P/A
+
+alp_occ_10 <- sampleOccurrences(alp_pa_10, type = "presence only", n = 100,
+                               correct.by.suitability = TRUE, plot = FALSE)
+
+# alp_occ_1
+# alp_occ_2
+# alp_occ_3
+# alp_occ_4
+# alp_occ_5
+# alp_occ_6
+# alp_occ_7
+# alp_occ_8
+# alp_occ_9
+# alp_occ_10
+
+#-------------------------------------------------------------------------------
+# STEP 3: EXTRACT AND STANDARDIZE BIO VARIABLES FROM ALL THE SAMPLES
+
+# bio variable dataframe = bio_AOI_df
+
+bio_AOI_df$x <- round(bio_AOI_df$x, 5)
+bio_AOI_df$y <- round(bio_AOI_df$y, 5)
+
+# create a function to extract and standardize
+ext_std_fn <- function(bio_AOI_df, alp_occ_i) {
+  # Round coordinates to 5 decimal places
+  alp_occ_i$sample.points$x <- round(alp_occ_i$sample.points$x, 5)
+  alp_occ_i$sample.points$y <- round(alp_occ_i$sample.points$y, 5)
+  
+  # Merge dataframes by coordinates (x, y)
+  bio_occ_i_df <- merge(bio_AOI_df, alp_occ_i$sample.points, by = c("x", "y"))
+  
+  # Eliminate non-bio variable columns (coords and real and observed columns)
+  bio_occ_i_df <- bio_occ_i_df[ , -c(1, 2, 10, 11)]
+  
+  # Standardize the dataframe using scale()
+  bio_occ_i_df_std <- scale(bio_occ_i_df)
+  
+  # Return the standardized dataframe
+  return(bio_occ_i_df_std)
+}
+
+# Combine all the occurrence sets into a list
+occ_sets <- list(alp_occ_2, alp_occ_3, alp_occ_4, alp_occ_5, alp_occ_6, alp_occ_7, alp_occ_8, alp_occ_9, alp_occ_10)
+
+# Process each occurrence set using lapply
+results <- lapply(occ_sets, function(alp_occ_i) ext_std_fn(bio_AOI_df, alp_occ_i))
+# result is a list containing all the standardized bio variables for each occurrence set
+
+# add the first set of occurrences (bio_occ_1_df_std) to list of the other 9 sets
+bio_occ_i_df_std <- c(list(bio_occ_1_df_std), results)
+
+#-------------------------------------------------------------------------------
+# STEP 4: CREATE A HYPERVOLUME OF THE AVERAGE OF ALL 10 OCCURRENCES SETS AND PLOT
+  #... AVERAGE VOLUME CHANGE OVER NUMBER OF SAMPLES
+
+# Initialize a list to store volumes for each occurrence set
+volumes <- list()
+
+# Loop through each occurrence set in the list
+for (i in seq_along(bio_occ_i_df_std)) {
+  # Initialize a vector to store the volumes
+  vol <- numeric()
+  
+  # Incrementally create hypervolumes for increasing sample sizes
+  for (j in seq(0, nrow(bio_occ_i_df_std[[i]]), by = 5)) {
+    # Create the hypervolume using Gaussian kernel density estimation
+    hv <- hypervolume_gaussian(data = bio_occ_i_df_std[[i]][1:j, ])
+    
+    # Store the volume
+    vol <- c(vol, get_volume(hv))
+  }
+  
+  # Store the volumes for the current occurrence set
+  volumes[[i]] <- vol
+}
+
+# Convert the list of volumes into a matrix (each column corresponds to an occurrence set)
+vol_matrix <- do.call(cbind, volumes)
+
+# Compute the average volume across all occurrence sets
+avg_vol <- rowMeans(vol_matrix, na.rm = TRUE)
+
+# Create data frame for plotting
+vol_avg_df <- data.frame(Samples = seq(0, 100, by = 5), Volume = avg_vol)
+
+# plot volume change over number of sample
+ggplot(vol_avg_df, aes(x = Samples, y = Volume)) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    title = "Average Unbiased Hypervolume",
+    x = "Number of Samples",
+    y = "Average Volume"
+  ) +
+  theme_minimal()
+
+dev.off()
+
+################################################################################
+# PART II: HV of 10 SPECIES - BIASED
+#-------------------------------------------------------------------------------
+# STEP ONE: RETRIEVE BIASED SAMPLING POINTS FOR EACH OCCURRENCE SET USING PROBABILITY RASTER
+
+# sampling probability spat raster: prob_sprstr
+
+# Create bias sampling function
+bias_sample_fn <- function(alp_occ_i, prob_sprstr) {
+  # Convert the occurrence sample points to spatial vector
+  coord_occ_i <- vect(alp_occ_i$sample.points, geom = c("x", "y"), crs = "epsg:4326")
+  
+  # Extract the probability of each point to be sampled
+  occ_prob_i <- extract(prob_sprstr, coord_occ_i, ID = TRUE)
+  
+  # Add the probability value to the points
+  coord_occ_i <- cbind(coord_occ_i, occ_prob_i$layer)
+  names(coord_occ_i)[ncol(coord_occ_i)] <- "probability"
+  
+  # Retrieve points only with 100% probability (within 1 km from roads)
+  occ_bias_i <- coord_occ_i[coord_occ_i$probability == 1, ]
+  
+  return(occ_bias_i)
+}
+
+# list of all occurrence is already created in Part I: occ_sets (just add the first one to it now)
+occ_sets <- list(alp_occ_1, alp_occ_2, alp_occ_3, alp_occ_4, alp_occ_5, alp_occ_6,
+                 alp_occ_7, alp_occ_8, alp_occ_9, alp_occ_10)
+
+# Process each occurrence set using lapply
+bias_sample_results <- lapply(occ_sets, function(alp_occ_i) bias_sample_fn(alp_occ_i, prob_sprstr))
+# result is a list containing all the biased subset samples for each occurrence
+
+# The results are too few: max number of samples collected in a set is 3 (out of 100)
+#--------------------------------------------------------------------------------
+# STEP TWO: EXTRACT AND STANDARDIZE BIO VARIABLES FROM ALL THE SAMPLES
