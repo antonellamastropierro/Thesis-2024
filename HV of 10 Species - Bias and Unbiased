@@ -6,7 +6,7 @@
 #-------------------------------------------------------------------------------
 # STEP ONE: CREATE 10 DIFFERENT TOTAL REALIZED NICHES
 
-alp_pa_1 <- convertToPA(alp_vs_1, alpha = -0.05, beta = 0.65, plot = F)
+alp_pa_10 <- convertToPA(alp_vs_1, alpha = -0.05, beta = 'random', plot = F, species.prevalence = 0.05)
 
 # alp_pa_1
 # alp_pa_2
@@ -23,7 +23,7 @@ alp_pa_1 <- convertToPA(alp_vs_1, alpha = -0.05, beta = 0.65, plot = F)
 #------------------------------------------------------------------------------
 # STEP 2: SAMPLE 100 OCCURRENCES FROM EACH P/A
 
-alp_occ_10 <- sampleOccurrences(alp_pa_10, type = "presence only", n = 100,
+alp_occ_1 <- sampleOccurrences(alp_pa_1, type = "presence only", n = 100,
                                correct.by.suitability = TRUE, plot = FALSE)
 
 # alp_occ_1
@@ -65,14 +65,14 @@ ext_std_fn <- function(bio_AOI_df, alp_occ_i) {
 }
 
 # Combine all the occurrence sets into a list
-occ_sets <- list(alp_occ_2, alp_occ_3, alp_occ_4, alp_occ_5, alp_occ_6, alp_occ_7, alp_occ_8, alp_occ_9, alp_occ_10)
+occ_sets <- list(alp_occ_1, alp_occ_2, alp_occ_3, alp_occ_4, alp_occ_5, alp_occ_6, alp_occ_7, alp_occ_8, alp_occ_9, alp_occ_10)
 
 # Process each occurrence set using lapply
-results <- lapply(occ_sets, function(alp_occ_i) ext_std_fn(bio_AOI_df, alp_occ_i))
+bio_occ_i_df_std <- lapply(occ_sets, function(alp_occ_i) ext_std_fn(bio_AOI_df, alp_occ_i))
 # result is a list containing all the standardized bio variables for each occurrence set
 
 # add the first set of occurrences (bio_occ_1_df_std) to list of the other 9 sets
-bio_occ_i_df_std <- c(list(bio_occ_1_df_std), results)
+# bio_occ_i_df_std <- c(list(bio_occ_1_df_std), results)
 
 #-------------------------------------------------------------------------------
 # STEP 4: CREATE A HYPERVOLUME OF THE AVERAGE OF ALL 10 OCCURRENCES SETS AND PLOT
@@ -150,9 +150,176 @@ occ_sets <- list(alp_occ_1, alp_occ_2, alp_occ_3, alp_occ_4, alp_occ_5, alp_occ_
                  alp_occ_7, alp_occ_8, alp_occ_9, alp_occ_10)
 
 # Process each occurrence set using lapply
-bias_sample_results <- lapply(occ_sets, function(alp_occ_i) bias_sample_fn(alp_occ_i, prob_sprstr))
+occ_bias_i <- lapply(occ_sets, function(alp_occ_i) bias_sample_fn(alp_occ_i, prob_sprstr))
 # result is a list containing all the biased subset samples for each occurrence
-
-# The results are too few: max number of samples collected in a set is 3 (out of 100)
+# 1: 19
+# 2: 12
+# 3: 18
+# 4: 13
+# 5: 8
+# 6: 12
+# 7: 13
+# 8: 13
+# 9: 7
+# 10: 19
 #--------------------------------------------------------------------------------
 # STEP TWO: EXTRACT AND STANDARDIZE BIO VARIABLES FROM ALL THE SAMPLES
+
+# the list contains 10 spatvectors all with different lengths
+
+# the coordinates need to be added to each spatvector in the list
+add_coords <- function(occ_bias_list) {
+  for (i in seq_along(occ_bias_list)) {
+    occ_bias_i <- occ_bias_list[[i]]
+    
+    # Extract coordinates using the 'geom' function from terra
+    coords <- geom(occ_bias_i)
+    
+    # Add coordinates as attributes
+    occ_bias_i$x <- coords[, "x"]
+    occ_bias_i$y <- coords[, "y"]
+    
+    # Update the list element
+    occ_bias_list[[i]] <- occ_bias_i
+  }
+  
+  return(occ_bias_list)
+}
+
+occ_bias_list <- add_coords(occ_bias_list)
+# now all the coordinates are added to each spatvector
+
+# extract each individual spatvector and convert to dataframe
+occ_bias_1_df <- as.data.frame(occ_bias_list[[1]])
+occ_bias_2_df <- as.data.frame(occ_bias_list[[2]])
+occ_bias_3_df <- as.data.frame(occ_bias_list[[3]])
+occ_bias_4_df <- as.data.frame(occ_bias_list[[4]])
+occ_bias_5_df <- as.data.frame(occ_bias_list[[5]])
+occ_bias_6_df <- as.data.frame(occ_bias_list[[6]])
+occ_bias_7_df <- as.data.frame(occ_bias_list[[7]])
+occ_bias_8_df <- as.data.frame(occ_bias_list[[8]])
+occ_bias_9_df <- as.data.frame(occ_bias_list[[9]])
+occ_bias_10_df <- as.data.frame(occ_bias_list[[10]])
+
+# combine all dataframes into a list
+occ_bias_df_list <- list(occ_bias_1_df, occ_bias_2_df, occ_bias_3_df, occ_bias_4_df,
+                         occ_bias_5_df, occ_bias_6_df, occ_bias_7_df, occ_bias_8_df,
+                         occ_bias_9_df, occ_bias_10_df)
+
+# remove unnecessary columns from each dataframe in list
+rem_col <- function(occ_bias_df_list) {
+  for (i in seq_along(occ_bias_df_list)) {
+    occ_bias_df_list[[i]] <- occ_bias_df_list[[i]][, -c(1:3)]
+  }
+  return(occ_bias_df_list)
+}
+
+occ_bias_df_list <- rem_col(occ_bias_df_list)
+# columns in each list are only x,y
+
+ext_std_bias_fn <- function(occ_bias_df_list, bio_AOI_df) {
+  # Create an empty list to store the standardized dataframes
+  bio_bias_df_std_list <- list()
+  
+  for (i in seq_along(occ_bias_df_list)) {
+    # Round coordinates to 5 decimal places
+    occ_bias_df_list[[i]]$x <- round(occ_bias_df_list[[i]]$x, 5)
+    occ_bias_df_list[[i]]$y <- round(occ_bias_df_list[[i]]$y, 5)
+    
+    # Merge dataframes by coordinates (x, y)
+    bio_occ_bias_df_list <- merge(bio_AOI_df, occ_bias_df_list[[i]], by = c("x", "y"))
+    
+    # Eliminate non-bio variable columns (coords and real and observed columns)
+    bio_occ_bias_df_list <- bio_occ_bias_df_list[, -c(1, 2)]
+    
+    # Standardize the variables in each list)
+    bio_bias_df_std_list[[i]] <- scale(bio_occ_bias_df_list)
+
+  }
+  
+  # Return the list of standardized dataframes
+  return(bio_bias_df_std_list)
+}
+
+# apply the function to the list
+bio_bias_std_list <- ext_std_bias_fn(occ_bias_df_list, bio_AOI_df)
+
+# bio_bias_std_list now contains a list of all 10 occurrence sets with their respective
+  # lengths with all variables standardized (mean=0, sd=1)
+#-------------------------------------------------------------------------------
+# STEP THREE: CREATE A HYPERVOLUME OF THE AVERAGE OF ALL 10 BIASED OCCURRENCES SETS
+  #... AND PLOT AVERAGE VOLUME CHANGE OVER NUMBER OF SAMPLES
+
+
+# Initialize a list to store volumes for each occurrence set
+bias_volumes <- list()
+
+# Loop through each occurrence set in the list
+for (i in seq_along(bio_bias_std_list)) {
+  # Initialize a vector to store the volumes
+  bias_vol <- numeric()
+  
+  # Incrementally create hypervolumes for increasing sample sizes
+  for (j in seq(0, nrow(bio_bias_std_list[[i]]), by = 1)) {
+    if (j == 0) {
+      # Skip the iteration if j is 0 to avoid empty slice
+      next
+    }
+    
+    # Create the hypervolume using Gaussian kernel density estimation
+    bias_hv <- hypervolume_gaussian(data = bio_bias_std_list[[i]][1:j, ])
+    
+    # Store the volume
+    bias_vol <- c(bias_vol, get_volume(bias_hv))
+  }
+ 
+  # Store the volumes for the current occurrence set
+  bias_volumes[[i]] <- bias_vol
+}
+
+# Find the maximum length of volume vectors
+bias_max_length <- max(sapply(bias_volumes, length))
+
+# Pad each volume vector with NA to make them the same length
+bias_volumes_NA <- lapply(bias_volumes, function(v) c(v, rep(NA, bias_max_length - length(v))))
+
+# Convert the list of volumes into a matrix (each column corresponds to an occurrence set)
+bias_vol_matrix <- do.call(cbind, bias_volumes_NA)
+
+# Compute the average volume across all occurrence sets
+bias_avg_vol <- rowMeans(bias_vol_matrix, na.rm = TRUE)
+
+# Create a data frame for plotting
+# Assume a sequence of samples starting from 0 and increasing by 1 each step
+bias_sample_seq <- seq(0, by = 1, length.out = length(bias_avg_vol))
+bias_vol_avg_df <- data.frame(Samples = bias_sample_seq, Volume = bias_avg_vol)
+
+# Plot volume change over number of samples
+ggplot(bias_vol_avg_df, aes(x = Samples, y = Volume)) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    title = "Average Biased Hypervolume",
+    x = "Number of Samples",
+    y = "Average Volume"
+  ) +
+  theme_minimal()
+
+################################################################################
+# COMBINE THE BIASED AND UNBIASED GRAPHS TOGETHER
+
+# Add a new column to each data frame to differentiate the unbiased from the biased
+vol_avg_df <- transform(vol_avg_df, Source = "Unbiased")
+bias_vol_avg_df <- transform(bias_vol_avg_df, Source = "Biased")
+
+# Combine the data frames
+combined_df <- rbind(vol_avg_df, bias_vol_avg_df)
+
+# Plot the combined data
+ggplot(combined_df, aes(x = Samples, y = Volume, color = Source)) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    title = "Average Hypervolume",
+    x = "Number of Samples",
+    y = "Average Volume"
+  ) +
+  theme_minimal()
