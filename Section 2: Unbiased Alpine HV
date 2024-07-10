@@ -1,14 +1,16 @@
 # SECTION II: UNBIASED ALPINE HV
 
-# OBJECTIVE 1: Retrieve and Standardize Bio Variables for Analysis
+# PRELIMINARY 1: Standardize bio variable raster layers
+# PRELIMINARY 2: Create Hypervolume Functions
+# OBJECTIVE 1: Retrieve Bio Variables for Analysis
 # OBJECTIVE 2: Create Actual Realized Niche Hypervolume ???
 # OBJECTIVE 3: Create and Expand Unbiased Estimated Hypervolume until Stabilization
 
 ################################################################################
 # SECTION I: UNBIASED ALPINE VS  - RECAP
 # Created Suitability Map for Alpine VS
-# Created Presence/Absence (Actual Realized Niche) for Alpine VS
-# Collected Initial Batch of 100 Presence-Only Sampled Occurrences from P/A Based
+# Created Presence/Absence (Total Realized Niche) for Alpine VS
+# Collected Initial Batch of 200 Presence-Only Sampled Occurrences from P/A Based
   #...on Suitability
 
 ################################################################################
@@ -25,219 +27,221 @@
 # trn = total realized niche
 # std = standardized
 ################################################################################
+# PRELIMINARY 1: Standardize Bio Variable Raster Layers
+# Purpose: the selected bio variables currently have different means, standard deviations,
+  #...and methods of measurements (i.e. temp (degree C), precipitation(mm)).
+  # Standardizing all the bio variables to have a mean=0 and SD=1 allows for consistency
+  #...throughout all bio variable measurements for better comparison.
+  # The bio variable raster layers should be standardized before bio variable extraction to eliminate
+  #...continuously having to standardize them after extraction.
 
-# OBJECTIVE 1: Retrieve and Standardize Bio Variables for Analysis
+# Standardization is completed through Z-score transformation so that:
+  # mean = 0
+  # SD = 1
+# Z-score transformation equation: Z = (x-u)/o
+  # x = data point value
+  # u = mean value
+  # o = standard deviation
+
+# convert bio variable spatraster (bio_AOI) into a raster stack with 7 layers representing each
+  #...bio variable
+bio_AOI_stk <- stack(bio_AOI)
+
+
+#confirm number of layers in bio variable raster stack
+nlayers(bio_AOI_stk)
+# 7 layers confirmed
+
+# create a loop that inputs the z-score equation into each of the 7 bio variable rasters
+for (i in 1:nlayers(bio_AOI_stk)){
+  bio_AOI_stk[[i]] <- (bio_AOI_stk[[i]] - cellStats(bio_AOI_stk[[i]], 'mean')) / cellStats(bio_AOI_stk[[i]], 'sd') 
+  }
+# rename to be aware that this is the standardized bio raster stack
+bio_AOI_stk_std <- bio_AOI_stk
+
+# confirm layers are standardized
+cellStats(bio_AOI_stk_std, 'mean')
+cellStats(bio_AOI_stk_std, 'sd')
+# all layers have mean = 0 and SD = 1
+
+# rename names in standardized stack so aware that these are the standardized layers
+names(bio_AOI_stk_std) <- c("Annual Mean Temp Std", "Isothermality Std", "Temp Seasonality Std",
+                            "Mean Temp of Wettest Quarter Std", "Mean Temp of Driest Quarter Std",
+                            "Annual Precip Std", "Precip Seasonality Std")
+
+# confirm changes
+names(bio_AOI_stk_std)
+
+# now there is a bio raster stack containing the 7 standardized bio variables
+#-------------------------------------------------------------------------------
+# PRELIMINARY 2: Create Hypervolume Functions
+# create the following functions:
+  # 1. calculate the hypervolume
+  # 2. calculate the hypervolume of a subset of data and check for convergence based on defined criteria
+
+# Function 1: HV calculation function (df = dataframe)
+calc_hv <- function(df) {
+  occ_hv <- hypervolume_gaussian(df) # function calculates hv using kernel density estimation
+  return(occ_hv@Volume) # returns the volume component of the hypervolume
+}
+
+# Function 2: HV calculation of a subset of the data (200 occurrences) and check for convergence based on defined criteria
+calc_conv <- function(x, no, epsilon = 0.01) { 
+  # x = dataframe (200 occurrences in this case)
+  # no = parameter that specifies how many random rows will be selected from x (in one iteration??)
+  # epsilon = convergence threshold
+  
+  # Initializes with a random row within the dataframe
+  fx <- x %>% 
+    sample_n(size = 1) 
+  
+  volumes <- 0  # where to store the subset HV volumes
+  num_occ <- 0  # store the subset number of occurrences
+  cnvrg_int <- FALSE # Boolean flag to indicate if convergence criterion is met (default is false)
+  
+  for (i in 1:1000) {
+    
+    fx <- x %>% # Starts with a random row in the dataset (x)
+      sample_n(size = no) %>% # Choose 'no' (parameter) random values
+      bind_rows(fx) %>% # binds the selected rows to 'fx'
+      distinct() # makes sure the values are all unique (have not been selected before)
+    
+    # Calculate the subset hypervolume (I already created the function calc_hv)
+    hv <- calc_hv(fx)
+    
+    # Save the hypervolume volume and number of occurrences
+    volumes <- c(volumes, hv)
+    num_occ <- c(num_occ, nrow(fx))
+    
+    # Convergence condition, meaning that if the difference between two subsequent volumes calculate is less than epsilon (convergence threshold) then the looping breaks because stabilization is achieved.
+    if (i > 1 && abs(volumes[i] - volumes[i - 1]) < epsilon) {
+      cnvrg_int <- TRUE
+      break
+    }
+    
+    # Stop when the subset has the same number of occurrences as the original set (200)
+    if(nrow(fx) == nrow(x)) {
+      break
+    }
+  }
+  
+  # Combine volumes and number of occurrences into a dataframe
+  result <- bind_cols(volumes = volumes, num_occ = num_occ)
+  return(list(result, cnvrg_int = cnvrg_int))
+}
+
+################################################################################
+# OBJECTIVE 1: Retrieve the Realized Niche Bio Variables for Analysis
 # Purpose: The isolated bio variables of the actual realized niche and first 100 samples
   #... are needed for HV creation and analysis
 # Realized Niche = Presence Values from the Presence-Absence Plot (alp_pa_1)
-  # PART A: Retrieve and Standardize Actual Realized Niche Bio Variables
-  # PART B: Retrieve and Standardize First 100 Sampled Occurrences Bio Variables
+  # PART A: Retrieve the Total Realized Niche Bio Variables (Presence Points)
+  # PART B: Retrieve First 200 Sampled Occurrences Bio Variables
 
 #-------------------------------------------------------------------------------
-# PART A: Retrieve and Standardize Actual Realized Niche Bio Variables
+# PART A: Retrieve the Total Realized Niche Bio Variables (Presence Points)
+# CONFIRM IF THIS PART IS EVEN NECESSARY - EXTRACTING BIO VARAIBLES OF TOTAL
+  # REALIZED NICHE
 
-freq(alp_pa_1$pa.raster)
 # convert virtual species into a raster layer
-alp_pa_1_rstr <- raster(alp_pa_1$pa.raster)
-# presence/absence is now a raster layer
-alp_pa_1_rstr$lyr.1
+# alp_pa_1_rstr <- raster(alp_pa_1$pa.raster)
+# presence/absence is now a raster layer with values 0 (absence) and 1 (presence)
 
-freq(alp_pa_1_rstr, value=1)
-# NCells = 672. This equals number of actual realized niches cells
-freq(alp_pa_1_rstr$lyr.1)
-# 0 = 329965
-# 1 = 672
+# freq(alp_pa_1_rstr$lyr.1)
+# Absence (0) = 314133
+# Presence (1) = 16504
 # NaN = 593779 <- masked areas of raster
-# QUESTION: why are there NaNs present??
 
-# the bio variable values need to be retrieved as well
-# convert each bio variable (7 total) into individual raster layers
-bio1_rstr <- raster(bio_AOI$`Annual Mean Temp`)
-bio3_rstr <- raster(bio_AOI$Isothermality)
-bio4_rstr <- raster(bio_AOI$`Temp Seasonality`)
-bio8_rstr <- raster(bio_AOI$`Mean Temp of Wettest Quarter`)
-bio9_rstr <- raster(bio_AOI$`Mean Temp of Driest Quarter`)
-bio12_rstr <- raster(bio_AOI$`Annual Precip`)
-bio15_rstr <- raster(bio_AOI$`Precip Seasonality`)
-# I kept all variables as raster layers for consistency throughout
+# the standardized bio variable values need to be retrieved for each presence point
+
+# convert each standardized bio variable (7 total) into individual raster layers
+# bio1_rstr_std <- bio_AOI_stk_std[[1]]
+# bio2_rstr_std <- bio_AOI_stk_std[[2]]
+# bio3_rstr_std <- bio_AOI_stk_std[[3]]
+# bio4_rstr_std <- bio_AOI_stk_std[[4]]
+# bio5_rstr_std <- bio_AOI_stk_std[[5]]
+# bio6_rstr_std <- bio_AOI_stk_std[[6]]
+# bio7_rstr_std <- bio_AOI_stk_std[[7]]
+
 
 # to compare the bio variables with the presence values, combine all the raster layers
-trn_rstr_1 <- stack(alp_pa_1_rstr, bio1_rstr, bio3_rstr, bio4_rstr,
-                    bio8_rstr, bio9_rstr, bio12_rstr, bio15_rstr)
+# trn_rstr_1 <- stack(alp_pa_1_rstr, bio1_rstr_std, bio2_rstr_std, bio3_rstr_std,
+                 #   bio4_rstr_std, bio5_rstr_std, bio6_rstr_std, bio7_rstr_std)
 
 
 # confirm all layers were added
-nlayers(trn_rstr_1)
+# nlayers(trn_rstr_1)
 # 8 layers total
 
 # convert total realized niche raster to dataframe
-trn_df_1 <- as.data.frame(arn_rstr_1, xy=TRUE)
+# trn_df_1 <- as.data.frame(trn_rstr_1, xy=TRUE)
 
 # find the name of the presence/absence column
-glimpse(trn_df_1)
+# glimpse(trn_df_1)
 # presence/absence column = lyr.1
 
 # filter out the presence-only values (lyr.1 = 1)
-trn_df_1 <- filter(trn_df_1, lyr.1 == 1)
-# only presence points = realized niche values
+# trn_df_1 <- filter(trn_df_1, lyr.1 == 1)
+# only presence points = total realized niche values
 
-# arn_df_1 = a dataframe containing all the bio variable values located in
+# trn_df_1 = a dataframe containing all the bio variable values located in
 #...actual realized niche
-glimpse(trn_df_1)
+# glimpse(trn_df_1)
 
 # remove lyr.1 column and coordinates
-trn_df_1 <- trn_df_1[ , -1:-3]
+# trn_df_1 <- trn_df_1[ , -1:-3]
+# glimpse(trn_df_1)
+# 672 rows (presence-only points)
+# 7 columns (7 bio variables)
 
-# now arn_df_1 consists of dataframe of the bio variable values of the actual realized niche
-
-# standardize the ARN bio variables in the dataframe
-# uses the z-score to standardized all variables with mean =0 and sd = 1
-trn_df_1_std <- scale(trn_df_1)
+# now trn_df_1 consists of dataframe of the bio variable values of the total realized niche
 
 # confirm mean = 0
-summary(trn_df_1_std)
+# summary(trn_df_1_std)
 
 # confirm sd = 1
-summary(sd(trn_df_1_std))
+# summary(sd(trn_df_1_std))
 
 #-------------------------------------------------------------------------------
-# PART B: Retrieve and Standardize First 100 Sampled Occurrences Bio Variables
+# PART B: Retrieve First 200 Sampled Occurrences with Their Respective Bio Variables
 
-# first merge bio variables with sample locations
-# convert bio variables into data frames
-bio_AOI_df <- as.data.frame(bio_AOI, xy=T)
+# convert the standardized bio variables raster stack into a dataframe with their coordinates
+# can also do bio_AOI_pts_std <- as.data.frame(bio_AOI_stk_std, xy=T), but results with NAs
+bio_AOI_pts_std <- rasterToPoints(bio_AOI_stk_std)
+bio_AOI_df_std <- as.data.frame(bio_AOI_pts_std)
+# dataframe contains all coordinates and their respective standardized bio variables in the AOI
 
-glimpse(bio_AOI_df)
+# retrieve a dataframe of the 200 sampled occurrences and their coordinates
+# the real and observed columns are not needed
+alp_occ_1_df <- alp_occ_1$sample.points[ , -c(3,4)]
 
-# check to see if coords have same decimal places
-glimpse(bio_AOI_df$x)
-glimpse(alp_occ_1$sample.points$x)
-glimpse(bio_AOI_df$y)
-glimpse(alp_occ_1$sample.points$y)
-
-
-# the coordinates have mismatched decimal places
+# the bio variable and 200 sample occurrence dataframes can be merged by their coordinates
+# before merging the two dataframes by coordinates confirm the coordinate decimal places are the same
 # round to the same decimal places so you get the bio values for all 672 samples
-bio_AOI_df$x <- round(bio_AOI_df$x, 5)
-bio_AOI_df$y <- round(bio_AOI_df$y, 5)
-alp_occ_1$sample.points$x <- round(alp_occ_1$sample.points$x, 5)
-alp_occ_1$sample.points$y <- round(alp_occ_1$sample.points$y, 5)
+bio_AOI_df_std$x <- round(bio_AOI_df_std$x, 5)
+bio_AOI_df_std$y <- round(bio_AOI_df_std$y, 5)
+alp_occ_1_df$x <- round(alp_occ_1_df$x, 5)
+alp_occ_1_df$y <- round(alp_occ_1_df$y, 5)
 
+# merge the 200 sampled occurrences with the bio variables by their coordinates
 # now that the coords are aligned, merge dataframes together by coords (x,y)
-bio_occ_1_df <- merge(bio_AOI_df, alp_occ_1$sample.points, by = c("x", "y"))
+bio_occ_1_df <- merge(bio_AOI_df_std, alp_occ_1_df, by = c("x", "y"))
 
 glimpse(bio_occ_1_df)
-# result is 100 observations of 11 variables
+# dataframe contains 200 observations (sample points) with their respective bio variable values
 
 # check for duplicates in dataframe
 duplicated(bio_occ_1_df$cell)
+# no duplicates
 
-# eliminate non bio variable columns (coords and real and observed columns)
-bio_occ_1_df <- bio_occ_1_df[ , c(-1,-2, -10, -11)]
+# now that the dataframes are merged, the coordinate columns can be eliminated
+bio_occ_1_df <- bio_occ_1_df[ , c(-1,-2)]
 
 # confirm remaining columns are all bio variables
 glimpse(bio_occ_1_df)
-# remaining 7 bio variables columns with 100 occurrences
+# rows = 200 (occurrence samples)
+# columns = 7 (bio variables)
 
-# standardize the 100 sampled occurrence bio variables in the dataframe
-# uses the z-score to standardized all variables with mean =0 and sd = 1
-bio_occ_1_df_std <- scale(bio_occ_1_df)
-
-# confirm mean = 0
-summary(bio_occ_1_df_std)
-
-# confirm sd = 1
-summary(sd(bio_occ_1_df_std))
-
+# a dataframe containing the 200 unbiased sampled occurrences and bio variables has been created
 ################################################################################
-# OBJECTIVE 3: Create and Expand Unbiased Estimated Hypervolume until Stabilization
-
-# Function to calculate hypervolume
-calculate_hypervolume <- function(df) {
-  hv <- hypervolume(df)
-  return(hv@Volume)  # Extract the volume from hypervolume object
-}
-
-
-  
-  # Plot hypervolume vs. number of samples
-  plot_data <- data.frame(samples = seq_along(volumes), volume = volumes)
-  ggplot(plot_data, aes(x = samples, y = volume)) +
-    geom_line() +
-    geom_point() +
-    labs(x = "Number of Samples", y = "Hypervolume Volume") +
-    ggtitle("Hypervolume Evolution")
-  
-  # Return final results
-  return(list(all_samples = all_samples, final_hv_volume = current_hv_volume))
-}
-
-# Example usage:
-# Replace 'alp_pa_1' with your presence absence raster object
-# Replace 'bio_vars' with your loaded bio variables raster stack
-result <- continuous_sampling_plot(alp_pa_1, bio_AOI, bio_occ_1_df_std, max_iterations = 1000, epsilon = 0.01)
-
-
-################################################################################
-################################################################################
-library(hypervolume)
-
-# convert to HV
-arn_HV <- hypervolume_gaussian(arn_df_1_std, name = "Actual Realized Niche Hypervolume")
-arn_HV@Volume
-# arn HV volume = 10457.21
-
-
-dev.off()
-
-#------------------------------------------------------------------------------
-# convert unbiased samples into HV
-
-glimpse(bio_occ_1_df)
-
-# standardize occurrence dataframe
-bio_occ_1_df_std <- scale(bio_occ_1_df)
-
-# Initialize a vector to store the volumes
-volumes <- numeric()
-
-# Incrementally create hypervolumes for increasing sample sizes
-for (i in seq(0, 672, by=2)) {
-
-  # Create the hypervolume using Gaussian kernel density estimation
-  hv <- hypervolume_gaussian(
-    data = bio_occ_1_df_std[1:i, ],
-    name = paste("Hypervolume with", i, "samples"),
-    samples.per.point = 1000,
-    quantile.requested = 0.95,
-    quantile.requested.type = "probability",
-    verbose = FALSE
-  )
-  
-  # Store the volume
-  volumes <- c(volumes, hv@Volume)
-}
-
-# Create a dataframe for plotting
-plot_data <- data.frame(Samples = seq(1, 672, by=10), Volume = volumes)
-
-ggplot(plot_data, aes(x = Samples, y = Volume)) +
-  geom_line() +
-  geom_point() +
-  labs(
-    title = "Hypervolume Volume over Number of Samples",
-    x = "Number of Samples",
-    y = "Hypervolume Volume"
-  ) +
-  theme_minimal()
-hv@Volume
-
-ggplot(plot_data, aes(x = Samples, y = Volume)) +
-  # + geom_point() + if i want to keep the points in
-  geom_smooth(method = "loess", se = FALSE) +
-  labs(
-    title = "Hypervolume Volume over Number of Samples",
-    x = "Number of Samples",
-    y = "Hypervolume Volume"
-  ) +
-  theme_minimal()
+# OBJECTIVE 3: Create Unbiased Sample HV and Observe Volume Change over Number of Samples
