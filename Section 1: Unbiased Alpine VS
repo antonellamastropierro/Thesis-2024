@@ -56,7 +56,7 @@ glimpse(bio_AOI_alp_df)
 
 # Get the means and SDs of each variable to input later into the VS
 
-# to get the means of all 8 variables at the same time
+# to get the means of all 7 variables at the same time
 colMeans(bio_AOI_alp_df)
 # Annual Temp = -2.53
 # Isothermality = 0.31
@@ -66,7 +66,7 @@ colMeans(bio_AOI_alp_df)
 # Annual Precip = 1783.65
 # Precipitation Seasonality = 27.32
 
-# retrieve SD of all 8 variables
+# retrieve SD of all 7 variables
 summarize_all(bio_AOI_alp_df, sd)
 # Annual Temp = 2.14
 # Isothermality = 0.16
@@ -94,40 +94,41 @@ alp_pmtrs <- formatFunctions(x=bio_AOI,
                              "Precip Seasonality"= c(fun = "dnorm", mean = 27.32, sd = 10.56))
 
 # input the alpine-specific parameters to generate an alpine-specific VS
-alp_vs_1 <- generateSpFromFun(raster.stack = bio_AOI,
+alp_vs <- generateSpFromFun(raster.stack = bio_AOI,
                               parameters = alp_pmtrs,
                               plot = TRUE)
 # shows the env. suitability for AOI specific to alpine species (scale of 0 to 1)
+# because the parameters are fixed, the suitability will not change if generateSpFromFun
+  #...is inputted again. The output will be the same
 
 dev.off()
 
 # to save the first alpine VS generated
-save(alp_vs_1, file = "VS_AOI_Unbiased/alp_vs_1")
+save(alp_vs, file = "VS_AOI_Unbiased/alp_vs")
 
 # to load the alpine VS
-# load(file = "VS_AOI_Unbiased/alp_vs_1")
+load(file = "VS_AOI_Unbiased/alp_vs")
 
 # to visualize the response functions that were inputted
-plotResponse(alp_vs_1)
+plotResponse(alp_vs)
 # all gaussian curves. Visualized the peak suitability values for each of the 7 variables
-
 
 dev.off()
 
 ################################################################################
 # OBJECTIVE 2: Create Presence/Absence (Realized Niche) of VS and Sample First 100 Occurrences
 # PURPOSE: to retrieve the actual realized niche of the alpine VS
-# PART A: Convert VS to presence/absence (baseline realized niche)
+# PART A: Convert VS to presence/absence (total realized niche)
 # PART B: Collect first occurrence samples (N: 1-100)
 
 #-------------------------------------------------------------------------------
-# PART A: Convert VS to presence/absence (baseline realized niche)
+# PART A: Convert VS to presence/absence (total realized niche)
 
 # now that the alpine VS is created, it can be converted to a P/A plot in order to
   # determine it's realized niche. The realized niche will be the presence-only raster
 
 # use converttoPA() function to convert the suitability plot into a binary presence/absence plot
-alp_pa_1 <- convertToPA(alp_vs_1, alpha = -0.05, beta = 0.65, plot = F)
+alp_pa_1 <- convertToPA(alp_vs, alpha = -0.05, beta = 'random', species.prevalence = 0.05, plot = F)
 # beta = inflection point of curve
 # lower beta = wider distribution range (increase probability of finding suitable conditions)
 # higher beta = smaller distribution range (decrease probability of finding suitable conditions)
@@ -135,21 +136,25 @@ alp_pa_1 <- convertToPA(alp_vs_1, alpha = -0.05, beta = 0.65, plot = F)
 # species prevalence: number of places occupied by the species
   #... out of the total number of available places
 # alpha = -0.05 is set as a logistic-like curve
-# beta = 0.65 to represent a more narrow niche breadth (inflection point at 65% suitability)
+# beta = is set to random since it goes hand-in-hand with species prevalence
+# species.prevalence = 0.05. The area within the AOI that is identified as alpine climate
+  #...covers 10% of the AOI, so the species prevalence should be less than 10%.
+  # For the sake of this project, since alpine climate areas are at high altitudes where
+  #...there are not many road systems, increasing the species prevalence will increase
+  #...the probability of occurrence at lower altitudes where road systems are present so
+  #...that some biased data based on roadside bias can be retrieved.
 
-# for alpine vs maybe good to make higher beta
-# maybe better to specify species prevalence to 3% since I found documents saying
-# ... Alpine occupies 3% of world
-# plot = TRUE)
+
 alp_pa_1
 # probabilistic method = logistic
-# species prevalence = 0.0020
+# beta = 0.22
+# species prevalence = 0.05
 
 # save presence/absence VS 1
 save(alp_pa_1, file = "VS_AOI_Unbiased/alp_pa_1")
 
 # load presence/absence VS 1
-# load(file = "VS_AOI_Unbiased/alp_pa_1")
+load(file = "VS_AOI_Unbiased/alp_pa_1")
 
 # plot the presence/absence raster
 plot(alp_pa_1$pa.raster)
@@ -158,8 +163,8 @@ plot(alp_pa_1$pa.raster)
 
 # to view the number of presences and absence number of cells
 freq(alp_pa_1$pa.raster)
-# Present (1) = 672
-# Absent (0) = 329965
+# Present (1) = 16504
+# Absent (0) = 314133
 # this is indicative of a rare species with a narrow niche breadth
 
 # the presence/absence VS represents the realized niche of the VS, with respect
@@ -171,173 +176,33 @@ dev.off()
 # OBJECTIVE 3: Conduct Initial Sampling Batch of Unbiased Sampling of Occurrences
 # PURPOSE: The initial sampling batch will be used for HV analysis
 
-# sample for first 100 occurrences
-alp_occ_1 <- sampleOccurrences(alp_pa_1, type = "presence only", n = 100,
+# sample for first 200 occurrences (actual realized niche)
+alp_occ_1 <- sampleOccurrences(alp_pa_1, type = "presence only", n = 200,
                                  correct.by.suitability = TRUE, plot = FALSE)
 # type = presence only samples
 # correct by suitability = samples collected are influenced by suitaibility
 
-# save the first 100 samples
+# save the first 200 samples
 save(alp_occ_1, file = "VS_AOI_Unbiased/alp_occ_1")
 
-# load(file = "VS_AOI_Unbiased/alp_occ_1")
+load(file = "VS_AOI_Unbiased/alp_occ_1")
 
 # plot against the PA and probability of occurrence for visualization
 par(mfrow = c(1,2))
 plot(alp_pa_1$pa.raster)
-points(alp_occ_1$sample.points)
+points(alp_occ_1$sample.points, pch=19, col="red")
 
 plot(alp_pa_1$probability.of.occurrence)
-points(alp_occ_1$sample.points)
+points(alp_occ_1$sample.points, col="red")
 # shows some occurrences sampled out of presence points because it's based on
   #...probability of occurrence
 
 dev.off()
 #-------------------------------------------------------------------------------
-# Continuous Sampling Loop (ONLY WORKS FOR 672 Samples and not more)
-
-ncell(alp_pa_1$pa.raster)
-# number of cells = 924,416
-
-freq(alp_pa_1$pa.raster$lyr.1)
-
-
-# Step 3: Initialize variables
-max_samples <- 673  # Define the maximum number of samples you want to collect
-sampled_cells <- integer(0)  # To keep track of already sampled cells
-unbiased_occurrences <- data.frame()  # Data frame to store sampled occurrences
-
-while(nrow(unbiased_occurrences) < max_samples) {
-  # Sample occurrences in larger batches
-  sampled_occ <- sampleOccurrences(alp_pa_1, type = "presence only", n = 100,
-                                   correct.by.suitability = TRUE, plot = FALSE)
-  
-  # Extract the cell IDs (assuming the cell IDs are stored in 'sample.points' with row names as cell IDs)
-  sampled_cell_ids <- as.numeric(rownames(sampled_occ$sample.points))
-  
-  # Filter out already sampled cells
-  new_cells <- setdiff(sampled_cell_ids, sampled_cells)
-  
-  # If there are no new cells, continue to the next iteration
-  if(length(new_cells) == 0) {
-    next
-  }
-
-  # Convert cell indices to coordinates
-  coords <- xyFromCell(alp_pa_1$pa.raster, new_cells)
-  
-  # Create a data frame for new occurrences
-  new_occurrences <- data.frame(cell = new_cells, x = coords[, 1], y = coords[, 2])
-  
-  # Add new occurrences to the occurrences data frame
-  unbiased_occurrences <- rbind(unbiased_occurrences, new_occurrences)
-  
-  # Update the list of sampled cells
-  sampled_cells <- c(sampled_cells, new_cells)
-  
-  # Break the loop if the maximum number of unique samples is reached
-  if(nrow(unbiased_occurrences) >= max_samples) {
-    break
-  }
-}
-
-# Ensure only the required number of samples is returned
-unbiased_occurrences <- unbiased_occurrences[1:max_samples, ]
-
-# Print the final occurrences data frame
-unbiased_occurrences
-
-save(unbiased_occurrences, file = "VS_AOI_Unbiased/unbiased_occurrences")
-
-################################################################################
-
-max_samples <- 1000  # Define the maximum number of samples you want to collect
-sampled_cells <- integer(0)  # To keep track of already sampled cells
-unbiased_occurrences <- data.frame()  # Data frame to store sampled occurrences
-initial_batch_size <- 100  # Initial batch size
-adjustment_factor <- 1.5  # Factor to increase the batch size
-
-while(nrow(unbiased_occurrences) < max_samples) {
-  # Calculate the batch size ensuring it is a positive integer
-  batch_size <- max(1, min(as.integer(initial_batch_size * adjustment_factor), 1000))
-  
-  # Sample occurrences in larger batches
-  sampled_occ <- sampleOccurrences(alp_pa_1, type = "presence only", n = batch_size,
-                                   correct.by.suitability = TRUE, plot = FALSE)
-  
-  # Extract the cell IDs (assuming the cell IDs are stored in 'sample.points' with row names as cell IDs)
-  sampled_cell_ids <- as.numeric(rownames(sampled_occ$sample.points))
-  
-  # Filter out already sampled cells
-  new_cells <- setdiff(sampled_cell_ids, sampled_cells)
-  
-  # If there are no new cells, continue to the next iteration
-  if(length(new_cells) == 0) {
-    next
-  }
-  
-  # Convert cell indices to coordinates
-  coords <- xyFromCell(alp_pa_1$pa.raster, new_cells)
-  
-  # Create a data frame for new occurrences
-  new_occurrences <- data.frame(cell = new_cells, x = coords[, 1], y = coords[, 2])
-  
-  # Add new occurrences to the occurrences data frame
-  unbiased_occurrences <- rbind(unbiased_occurrences, new_occurrences)
-  
-  # Update the list of sampled cells
-  sampled_cells <- c(sampled_cells, new_cells)
-  
-  # Break the loop if the maximum number of unique samples is reached
-  if(nrow(unbiased_occurrences) >= max_samples) {
-    break
-  }
-}
-
-#################################################################################
-
-max_samples <- 1000  # Define the maximum number of samples you want to collect
-sampled_cells <- integer(0)  # To keep track of already sampled cells
-unbiased_occurrences <- data.frame()  # Data frame to store sampled occurrences
-
-while(nrow(unbiased_occurrences) < max_samples) {
-  # Sample occurrences with presence only and correcting by suitability
-  sampled_occ <- sampleOccurrences(alp_pa_1, type = "presence only", n = 250,
-                                   correct.by.suitability = TRUE, plot = FALSE)
-  
-  # Extract the cell IDs (assuming the cell IDs are stored in 'sample.points' with row names as cell IDs)
-  sampled_cell_ids <- as.numeric(rownames(sampled_occ$sample.points))
-  
-  # Filter out already sampled cells
-  new_cells <- setdiff(sampled_cell_ids, sampled_cells)
-  
-  # If there are no new cells, break the loop
-  if(length(new_cells) == 0) {
-    message("No new unique presence cells found. Exiting loop.")
-    break
-  }
-  
-  # Convert cell indices to coordinates
-  coords <- xyFromCell(alp_pa_1$pa.raster, new_cells)
-  
-  # Create a data frame for new occurrences
-  new_occurrences <- data.frame(cell = new_cells, x = coords[, 1], y = coords[, 2])
-  
-  # Add new occurrences to the occurrences data frame
-  unbiased_occurrences <- rbind(unbiased_occurrences, new_occurrences)
-  
-  # Update the list of sampled cells
-  sampled_cells <- c(sampled_cells, new_cells)
-  
-  # Break the loop if the maximum number of unique samples is reached
-  if(nrow(unbiased_occurrences) >= max_samples) {
-    break
-  }
-}
-
-# Check if we reached the desired number of samples or exited early
-if(nrow(unbiased_occurrences) < max_samples) {
-  message("Unable to collect the desired number of unique samples. Collected ", nrow(unbiased_occurrences), " samples.")
-} else {
-  message("Successfully collected ", max_samples, " unique samples.")
-}
+# CONCLUSION:
+  # a virtual species has been created who's suitability is based on alpine climate
+  #...conditions.
+  # a presence/absence plot was created showing the total realized niche (presence points)
+  #...of the alpine species.
+  # 200 presence-only samples were collected from the P/A plot created. The sampled occurrences
+  #...are unbiased and represent a subset of the total realized niche (actual realized niche)
