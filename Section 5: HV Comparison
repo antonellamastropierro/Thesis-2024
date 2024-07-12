@@ -1,0 +1,71 @@
+# SECTION V: UNBIASED AND BIASED HV COMPARISON
+
+# OBJECTIVE 1: Plot the Unbiased and Biased Results Together
+# OBJECTIVE 2: Create Unbiased Sample HV and Observe Volume Change over Number of Samples
+
+################################################################################
+# SECTION III UNBIASED ALPINE HV  - RECAP ### FIX ###
+# Extracted and Standardized Total Realized Niche and Initial 100 Occurrence Bio Variables
+# Created and Expanded Unbiased Estimated HV until Stabilization/Depletion of Unique Cells
+
+################################################################################
+# LEGEND:
+# AOI = area of interest (European Alps mountain range)
+# bio = CHELSA environmental variables
+# alp = alpine climate locations
+# df = dataframe
+# pmtrs = parameters
+# vs = virtual species
+# pa = presence/absence
+# occ = occurrences
+# rstr = raster
+# std = standardized
+################################################################################
+# OBJECTIVE 1: Plot the Unbiased and Biased Results Together
+
+# Combine unbiased and biased data
+combined_df$sampletype <- "unbiased"
+combined_bias_df$sampletype <- "biased"
+combined_data <- rbind(combined_df, combined_bias_df)
+
+# Filter any NAs
+predizioni_media <- predizioni_media %>% filter(!is.na(num_occ) & !is.na(hv_mean))
+predizioni_media_bias <- predizioni_media_bias %>% filter(!is.na(num_occ) & !is.na(hv_mean))
+
+ggplot() +
+  geom_smooth(data = combined_df, aes(x = num_occ, y = volumes, group = sim, color = "Unbiased"), 
+              method = "loess", se = FALSE, size = 0.5, alpha = 0.5) +
+  geom_smooth(data = combined_bias_df, aes(x = num_occ, y = volumes, group = sim, color = "Biased"), 
+              method = "loess", se = FALSE, size = 0.5, alpha = 0.5) +
+  geom_line(data = predizioni_media, aes(x = num_occ, y = hv_mean, color = "Unbiased Mean"), 
+            size = 1.2) +
+  geom_line(data = predizioni_media_bias, aes(x = num_occ, y = hv_mean, color = "Biased Mean"), 
+            size = 1.2) +
+  labs(title = "HV Volume over Number of Occurrences: Unbiased vs. Biased",
+       x = "Occurrences",
+       y = "Volume",
+       color = "Legend") +
+  scale_color_manual(values = c("Unbiased Mean" = "deeppink", "Biased Mean" = "turquoise4")) +
+  theme_minimal()
+
+################################################################################
+# OBJECTIVE 2: Quantify the Differences Between Unbiased and Biased Hypervolumes
+
+# retrieve max HV values for both unbiased and biased
+
+# End Sampling Values
+final_unbiased <- tail(predizioni_media, 1)
+final_biased <- tail(predizioni_media_bias, 1)
+final_results <- data.frame(
+  type = c("unbiased", "biased"),
+  num_occ = c(final_unbiased$num_occ, final_biased$num_occ),
+  volumes = c(final_unbiased$hv_mean, final_biased$hv_mean)
+)
+final_results
+# unbiased: num_occ = 24, volume = 387.12
+# biased: num_occ = 15, volume = 4599.21
+
+################################################################################
+# CONCLUSION:
+  # Unbiased: The smaller HV suggests that the data points are more clustered or cover a more restricted range in the n-dimensional space.
+  # Biased: The larger HV suggests that the data points are more spread out, covering a larger range in the n-dimensional space.
