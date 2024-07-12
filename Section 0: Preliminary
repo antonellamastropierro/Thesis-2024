@@ -46,6 +46,7 @@ library(ClimDatDownloadR)
 library(raster)
 
 # mapping geographical data
+# CONFIRM IF EVEN NECESSARY
 library(rnaturalearth)
 library(rnaturalearthdata)
 
@@ -69,7 +70,10 @@ library(virtualspecies)
 library(hypervolume)
 
 # OSM retrieval
+# CONFIRM IF OSMDATA IS EVEN NECESSARY
+# open street map package to obtain small data set road maps
 library(osmdata)
+# package for extracting large datasets (i.e. countries)
 library(osmextract)
 
 # color palette creation
@@ -125,7 +129,7 @@ st_bbox(AOI)
 save(AOI, file = "alp_shpfiles/eu_mtn/AOI.shp")
 
 # to load the file
-load(file="alp_shpfiles/eu_mtn/AOI.shp")
+# load(file="alp_shpfiles/eu_mtn/AOI.shp")
 
 extent(AOI)
 # xmin       : 4.735802 
@@ -271,6 +275,15 @@ bio_AOI_alp <- mask(bio_AOI, alp_AOI, inverse = FALSE)
 plot(bio_AOI_alp[[1]])
 # the plot now shows the isolated alpine climate areas in the bio variable plot
 ## REMEMBER TITLE, COLORS, ETC FOR PLOT
+
+# plot the bio variables within the alpine climate locations in the AOI
+temp_bio_rstr <- raster(bio_AOI_alp[[1]])
+temp_bio_df <- as.data.frame(rasterToPoints(temp_bio_rstr), stringsAsFactors = FALSE)
+
+ggplot() +
+  geom_raster(data = temp_bio_df, aes(x = x, y = y, fill=Annual.Mean.Temp)) +
+  geom_sf(data = AOI, fill=NA) +
+  theme_minimal()
 
 dev.off()
 
