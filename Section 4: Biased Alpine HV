@@ -1,12 +1,12 @@
 # SECTION IV: BIASED ALPINE HV
 
-# OBJECTIVE 1: Retrieve and Standardize Bio Variables for Analysis
-# OBJECTIVE 2: Create and Expand Unbiased Estimated Hypervolume until Stabilization
+# OBJECTIVE 1: Retrieve Bio Variables for Analysis
+# OBJECTIVE 2: Create Unbiased Sample HV and Observe Volume Change over Number of Samples
 
 ################################################################################
-# SECTION III BIASED ALPINE VS  - RECAP
-# Created Distance and Sampling Probability Rasters for Sampling Bias
-# Retrieved Biased Sampling from Unbiased Sampling Points by Incorporating Sampling Bias
+# SECTION III UNBIASED ALPINE HV  - RECAP ### FIX ###
+# Extracted and Standardized Total Realized Niche and Initial 100 Occurrence Bio Variables
+# Created and Expanded Unbiased Estimated HV until Stabilization/Depletion of Unique Cells
 
 ################################################################################
 # LEGEND:
@@ -21,80 +21,120 @@
 # rstr = raster
 # std = standardized
 ################################################################################
-
-# OBJECTIVE 1: Retrieve and Standardize Bio Variables of Biased Points for Analysis
+# OBJECTIVE 1: Retrieve Bio Variables for Analysis
+# a standardized bio variable raskterstack was already created in Section III
 
 # first merge bio variables with sample locations
 # the bio variables have already been created into a dataframe in Section 2
 
 # create a dataframe of the biased points
-occ_bias_1_df <- as.data.frame(occ_bias_1)
-# Extract the spatial coordinates from the 'coords' attribute
-crds_1 <- st_coordinates(bias_pts)
-
-# Create a dataframe with coordinates
-crds_1_df <- data.frame(X = crds_1[, 1], Y = crds_1[, 2])
-occ_bias_1_df <- cbind(occ_bias_1_df, crds_1_df)
-occ_bias_1_df <- occ_bias_1_df[ , -1:-4]
-
-# rename x,y columns to match with bio variable dataframe
-colnames(occ_bias_1_df) <- c("x", "y")
+occ_bias_1_df <- as.data.frame(bias_pts)
+bias_coord <- st_coordinates(bias_pts)
+occ_bias_1_df <- cbind(bias_coord, occ_bias_1_df)
+# rename the x,y columns to match with the biovariable coordinate columns
+occ_bias_1_df <- rename(occ_bias_1_df, c(x = X, y = Y))
 
 # make sure all decimal places are correct before merging
-bio_AOI_df$x <- round(bio_AOI_df$x, 5)
-bio_AOI_df$y <- round(bio_AOI_df$y, 5)
+bio_AOI_df_std$x <- round(bio_AOI_df_std$x, 5)
+bio_AOI_df_std$y <- round(bio_AOI_df_std$y, 5)
 occ_bias_1_df$x <- round(occ_bias_1_df$x, 5)
 occ_bias_1_df$y <- round(occ_bias_1_df$y, 5)
 
 # merge the points and the bio variables together
-bio_bias_1_df <- merge(bio_AOI_df, occ_bias_1_df, by = c("x", "y"))
+bio_bias_1_df <- merge(bio_AOI_df_std, occ_bias_1_df, by = c("x", "y"))
 
 glimpse(bio_bias_1_df)
-# result is 2 observations of 7 variables
+# result is 29 observations from the biased sampling with their respective bio variables
 
-# check for duplicates in dataframe
-duplicated(bio_bias_1_df$cell)
-# no duplicates
+# eliminate all the non-bio variable columns
+bio_bias_1_df <- bio_bias_1_df[ , -c(1,2,10:14)]
 
-# standardize the biased sample occurrence bio variables in the dataframe
-# uses the z-score to standardized all variables with mean =0 and sd = 1
-bio_bias_1_df_std <- scale(bio_bias_1_df)
-
-# confirm mean = 0
-summary(bio_bias_1_df_std)
-
-# confirm sd = 1
-summary(sd(bio_bias_1_df_std))
-
-# all variables in the dataframe have been standardized
-
+# result is dataframe containing the 29 biased samples and their bio variables
 ################################################################################
-# OBJECTIVE 2: Create Biased Sample HV and Observe Volume Change over Number of Samples
+# OBJECTIVE 3: Create Unbiased Sample HV and Observe Volume Change over Number of Samples
+# PART A: Run the biased HV calculations for 10 simulations
+# PART B: Plot the biased HV volume over number of samples
 
-# Initialize a vector to store the volumes
-vol_bias_1 <- numeric()
+#------------------------------------------------------------------------------
+# PART A: Run the biased HV calculations for 10 simulations
+# the two functions needed were already created in Section III
 
-# Incrementally create hypervolumes for increasing sample sizes
-for (i in seq(0, nrow(bio_bias_1_df_std), by = 1)) {
+# create a new stop for the biased points
+stop_bias <- nrow(bio_bias_1_df)
+
+# store number of simulations
+num_sim <- 10
+
+# list of the occurrences to be tested (start at 10, by 10, until 29)
+n_occ_bias_list <- c(seq(from = 10, to = stop_bias, by = 10), stop_bias)
+
+# List to store the simulations
+sim_bias_list <- list()
+
+# vector to store convergence information
+convg_bias_info <- vector("logical", num_sim)
+
+# Simulation Loop
+for (sim in 1:num_sim) {
   
-  # Create the hypervolume using Gaussian kernel density estimation
-  hv_bias_1 <- hypervolume_gaussian(
-    data = bio_bias_1_df_std[1:i, ]
-  )
+  list_output_bias_occ <- list()
   
-  # Store the volume
-  vol_bias_1 <- c(vol_bias_1, get_volume(hv_bias_1))
+  for (i in seq_along(n_occ_bias_list)) {
+    result_bias <- calc_accum(bio_bias_1_df, n_occ_bias_list[i])
+    nelly_bias <- result_bias$result
+    converged_bias <- result_bias$converged
+    
+    list_output_bias_occ[[i]] <- nelly_bias
+    
+  }
+  
+  # Store convergence information for this simulation iteration
+  convg_bias_info[sim] <- converged_bias
+  
+  # Add the occurrence list to the simulation list
+  sim_bias_list[[sim]] <- list_output_bias_occ
 }
 
-# Create a dataframe for plotting
-vol_bias_1_df <- data.frame(Samples = seq(0, nrow(bio_bias_1_df_std), by = 1), Volume = vol_bias_1)
 
-# Plot using ggplot2
-ggplot(vol_bias_1_df, aes(x = Samples, y = Volume)) +
-  geom_smooth(method = "loess", se=F) +  # Adding smoothing
-  labs(
-    title = "Biased Hypervolume 1",
-    x = "Number of Samples",
-    y = "Volume"
-  ) +
+# View the convergence information
+print(convg_bias_info)
+
+# Combine all simulations into one dataframe
+combined_bias_df <- do.call(rbind, lapply(seq_along(sim_bias_list), function(sim) {
+  do.call(rbind, lapply(sim_bias_list[[sim]], function(df) {
+    df$sim <- sim
+    df
+  }))
+}))
+
+# view resulting dataframe
+combined_bias_df
+
+#-------------------------------------------------------------------------------
+# PART 2: Plot the average biased HV volume over number of samples from the 10 Simulations
+
+# Mean predictions (LOESS): x sequence 
+x_seq_bias <- seq(min(combined_bias_df$num_occ), max(combined_bias_df$num_occ), length.out = 100)
+loess_predictions_bias <- lapply(unique(combined_bias_df$num_occ), function(n) {
+  preds_bias <- sapply(sim_bias_list, function(lista) {
+    loess_fit_bias <- loess(volumes ~ num_occ, data = do.call(rbind, lista))
+    predict(loess_fit_bias, newdata = data.frame(num_occ = n))
+  })
+  data.frame(num_occ = n, hv_mean = mean(preds_bias, na.rm = TRUE))
+})
+predizioni_media_bias <- do.call(rbind, loess_predictions_bias)
+
+# PLOT
+ggplot() +
+  geom_smooth(data = combined_bias_df, aes(x = num_occ, y = volumes, group = sim), 
+              method = "loess", se = FALSE, color = "grey", size = 0.5, alpha = 0.5) +
+  geom_line(data = predizioni_media_bias, aes(x = num_occ, y = hv_mean), 
+            color = "turquoise4", size = 1.2) +
+  labs(title = "Hypervolume Mean: Biased (10 Simulations)",
+       x = "Number of Occurrences",
+       y = "Hypervolume Volume") +
   theme_minimal()
+
+################################################################################
+# CONCLUSION:
+
