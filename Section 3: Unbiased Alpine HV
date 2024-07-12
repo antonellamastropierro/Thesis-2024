@@ -1,17 +1,16 @@
-# SECTION II: UNBIASED ALPINE HV
+# SECTION III: UNBIASED ALPINE HV
 
 # PRELIMINARY 1: Standardize bio variable raster layers
 # PRELIMINARY 2: Create Hypervolume Functions
 # OBJECTIVE 1: Retrieve Bio Variables for Analysis
-# OBJECTIVE 2: Create Actual Realized Niche Hypervolume ???
-# OBJECTIVE 3: Create and Expand Unbiased Estimated Hypervolume until Stabilization
+# OBJECTIVE 2: Create Unbiased Sample HV and Observe Volume Change over Number of Samples
 
 ################################################################################
-# SECTION I: UNBIASED ALPINE VS  - RECAP
-# Created Suitability Map for Alpine VS
-# Created Presence/Absence (Total Realized Niche) for Alpine VS
-# Collected Initial Batch of 200 Presence-Only Sampled Occurrences from P/A Based
-  #...on Suitability
+# SECTION II RECAP: BIASED ALPINE VS
+# Created distance from roads and sampling probability rasters for the AOI
+# Extracted the sampling probability for the 200 presence-only unbiased samples
+# Filtered out the unbiased sampling occurrences with 100% sampling probability (within 1km from road)
+# Retrieved Biased Sampling Points (24 biased points out of 200 unbiased points)
 
 ################################################################################
 # LEGEND:
@@ -24,7 +23,6 @@
 # pa = presence/absence
 # occ = occurrences
 # rstr = raster
-# trn = total realized niche
 # std = standardized
 ################################################################################
 # PRELIMINARY 1: Standardize Bio Variable Raster Layers
@@ -47,17 +45,20 @@
   #...bio variable
 bio_AOI_stk <- stack(bio_AOI)
 
-
 #confirm number of layers in bio variable raster stack
 nlayers(bio_AOI_stk)
 # 7 layers confirmed
 
+# empty list to store the standardized raster layers
+bio_AOI_stk_std <- list()
+
 # create a loop that inputs the z-score equation into each of the 7 bio variable rasters
 for (i in 1:nlayers(bio_AOI_stk)){
-  bio_AOI_stk[[i]] <- (bio_AOI_stk[[i]] - cellStats(bio_AOI_stk[[i]], 'mean')) / cellStats(bio_AOI_stk[[i]], 'sd') 
+  bio_AOI_stk_std[[i]] <- (bio_AOI_stk[[i]] - cellStats(bio_AOI_stk[[i]], 'mean')) / cellStats(bio_AOI_stk[[i]], 'sd') 
   }
-# rename to be aware that this is the standardized bio raster stack
-bio_AOI_stk_std <- bio_AOI_stk
+
+# convert the standardized list into a rasterstack
+bio_AOI_stk_std <- stack(bio_AOI_stk_std)
 
 # confirm layers are standardized
 cellStats(bio_AOI_stk_std, 'mean')
@@ -72,6 +73,11 @@ names(bio_AOI_stk_std) <- c("Annual Mean Temp Std", "Isothermality Std", "Temp S
 # confirm changes
 names(bio_AOI_stk_std)
 
+# save the standardized rasterstack
+writeRaster(bio_AOI_stk_std, file = "VS_HV/bio_AOI_stk_std.tif")
+# to load it
+# bio_AOI_stk_std <- stack("VS_HV/bio_AOI_stk_std.tif")
+
 # now there is a bio raster stack containing the 7 standardized bio variables
 #-------------------------------------------------------------------------------
 # PRELIMINARY 2: Create Hypervolume Functions
@@ -85,19 +91,17 @@ calc_hv <- function(df) {
   return(occ_hv@Volume) # returns the volume component of the hypervolume
 }
 
-# Function 2: HV calculation of a subset of the data (200 occurrences) and check for convergence based on defined criteria
-calc_conv <- function(x, no, epsilon = 0.01) { 
-  # x = dataframe (200 occurrences in this case)
-  # no = parameter that specifies how many random rows will be selected from x (in one iteration??)
+# Function 2: Calculation of accumulation curve of a subset of the data
+calc_accum <- function(x, no, epsilon = 0.01) {
+  # x = dataframe (unbiased/biased points)
+  # no = parameter that specifies how many random rows will be selected from x
   # epsilon = convergence threshold
   
   # Initializes with a random row within the dataframe
-  fx <- x %>% 
-    sample_n(size = 1) 
-  
+  fx <- x %>% sample_n(size = 1) 
   volumes <- 0  # where to store the subset HV volumes
   num_occ <- 0  # store the subset number of occurrences
-  cnvrg_int <- FALSE # Boolean flag to indicate if convergence criterion is met (default is false)
+  converged <- FALSE
   
   for (i in 1:1000) {
     
@@ -113,21 +117,19 @@ calc_conv <- function(x, no, epsilon = 0.01) {
     volumes <- c(volumes, hv)
     num_occ <- c(num_occ, nrow(fx))
     
-    # Convergence condition, meaning that if the difference between two subsequent volumes calculate is less than epsilon (convergence threshold) then the looping breaks because stabilization is achieved.
-    if (i > 1 && abs(volumes[i] - volumes[i - 1]) < epsilon) {
-      cnvrg_int <- TRUE
+    # Check for convergence
+    if (length(volumes) > 1 && abs(volumes[length(volumes)] - volumes[length(volumes) - 1]) < epsilon) {
+      converged <- TRUE
       break
     }
     
-    # Stop when the subset has the same number of occurrences as the original set (200)
-    if(nrow(fx) == nrow(x)) {
+    # Stop when the subset has the same number of occurrences as the original set
+    if (nrow(fx) == nrow(x)) {
       break
     }
   }
-  
-  # Combine volumes and number of occurrences into a dataframe
-  result <- bind_cols(volumes = volumes, num_occ = num_occ)
-  return(list(result, cnvrg_int = cnvrg_int))
+  result <- bind_cols(volumes = volumes, num_occ = num_occ)   
+  return(list(result=result, converged = converged))
 }
 
 ################################################################################
@@ -230,10 +232,6 @@ bio_occ_1_df <- merge(bio_AOI_df_std, alp_occ_1_df, by = c("x", "y"))
 glimpse(bio_occ_1_df)
 # dataframe contains 200 observations (sample points) with their respective bio variable values
 
-# check for duplicates in dataframe
-duplicated(bio_occ_1_df$cell)
-# no duplicates
-
 # now that the dataframes are merged, the coordinate columns can be eliminated
 bio_occ_1_df <- bio_occ_1_df[ , c(-1,-2)]
 
@@ -245,3 +243,109 @@ glimpse(bio_occ_1_df)
 # a dataframe containing the 200 unbiased sampled occurrences and bio variables has been created
 ################################################################################
 # OBJECTIVE 3: Create Unbiased Sample HV and Observe Volume Change over Number of Samples
+  # PART A: Retrieve a subsample of the unbiased occurrence points that matches the same
+    #...sampling effort as the biased points
+  # PART B: Run the unbiased HV calculations for 10 simulations
+  # PART C: Plot the unbiased HV volume over number of samples
+#------------------------------------------------------------------------------
+# PART A: Retrieve a subsample of the unbiased occurrence points that matches the same
+#...sampling effort as the biased points
+# Purpose: the biased sampling resulted in the collection of only 24 out of 200 unbiased samples.
+  # In order for better comparison of the unbiased and biased HVs, the unbiased and biased HV
+  #...should be calculated from similar sampling efforts (similar amount of samples)
+
+# Retrieve rows from the unbiased and biased samplings
+nrow(bias_pts) # 29
+nrow(unbias_pts) # 200
+# create a stop that equates to the number of biased sampled collected with an additional 20%
+  #...of the biased samples collected
+stop <-  ceiling(nrow(bias_pts) + 0.2 * (nrow(bias_pts)))
+# result is a stopping point of 35 samples (amount of unbiased samples to be retrieved)
+
+# Retrieve a random subsample of 35 points from the unbiased points
+bio_occ_1_df_sub <- bio_occ_1_df[sample(nrow(bio_occ_1_df), stop), ]
+# now the unbiased points contain 35 randomly selected points from the unbiased point dataset
+
+# save the random subsample
+save(bio_occ_1_df_sub, file = "VS_HV/bio_occ_1_df_sub")
+# load("VS_HV/bio_occ_1_df_sub")
+
+#-------------------------------------------------------------------------------
+# PART B: Run the Unbiased HV Calculations for 10 simulations
+# Purpose: using the two HV calculation functions created, the unbiased HV volume
+  #....over number of samples can be created and run for 10 simulations
+
+# store number of simulations
+num_sim <- 10
+
+# list of the occurrences to be tested (start at 5, by 5, until 35)
+n_occ_list <- c(seq(from = 10, to = stop, by = 10), stop)
+
+# List to store the simulations
+sim_list <- list()
+
+# vector to store convergence information
+convg_info <- vector("logical", num_sim)
+
+# Simulation Loop
+for (sim in 1:num_sim) {
+  
+  list_output_occ <- list()
+ 
+  for (i in seq_along(n_occ_list)) {
+    result <- calc_accum(bio_occ_1_df_sub, n_occ_list[i])
+    nelly <- result$result
+    converged <- result$converged
+    
+    list_output_occ[[i]] <- nelly
+    
+    }
+  
+  # Store convergence information for this simulation iteration
+  convg_info[sim] <- converged
+  
+  # Add the occurrence list to the simulation list
+  sim_list[[sim]] <- list_output_occ
+}
+
+
+# View the convergence information
+print(convg_info)
+
+# Combine all simulations into one dataframe
+combined_df <- do.call(rbind, lapply(seq_along(sim_list), function(sim) {
+  do.call(rbind, lapply(sim_list[[sim]], function(df) {
+    df$sim <- sim
+    df
+  }))
+}))
+
+# view resulting dataframe
+combined_df
+
+#--------------------------------------------------------------------------------
+# PART C: Plot the average unbiased HV volume over number of samples from the 10 Simulations
+
+# Mean predictions (LOESS): x sequence 
+x_seq <- seq(min(combined_df$num_occ), max(combined_df$num_occ), length.out = 100)
+loess_predictions <- lapply(unique(combined_df$num_occ), function(n) {
+  preds <- sapply(sim_list, function(lista) {
+    loess_fit <- loess(volumes ~ num_occ, data = do.call(rbind, lista))
+    predict(loess_fit, newdata = data.frame(num_occ = n))
+  })
+  data.frame(num_occ = n, hv_mean = mean(preds, na.rm = TRUE))
+})
+predizioni_media <- do.call(rbind, loess_predictions)
+
+# PLOT
+ggplot() +
+  geom_smooth(data = combined_df, aes(x = num_occ, y = volumes, group = sim), 
+              method = "loess", se = FALSE, color = "grey", size = 0.5, alpha = 0.5) +
+  geom_line(data = predizioni_media, aes(x = num_occ, y = hv_mean), 
+            color = "deeppink", size = 1.2) +
+  labs(title = "Hypervolume Mean: Unbiased (10 Simulations)",
+       x = "Number of Occurrences",
+       y = "Hypervolume Volume") +
+  theme_minimal()
+# the graph depicts the average HV volume over number of samples. Convergence was
+  #...not achieved in any of the simulations
