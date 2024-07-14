@@ -19,18 +19,9 @@ install.packages("usdm")
 install.packages("tidyr")
 install.packages("dplyr")
 install.packages("sf")
-
-# check to see if these packages are needed anymore
-install.packages("rnaturalearth")
-install.packages("rnaturalearthdata")
-
 install.packages("ggplot2")
 install.packages("viridis")
-
 install.packages("hypervolume")
-
-# confirm if OSMDATA is needed anymore
-install.packages("osmdata")
 install.packages("osmextract")
 
 # to install and load ClimDatDownloadR for loading CHELSA data
@@ -45,11 +36,6 @@ library(ClimDatDownloadR)
 # geographic data and analysis
 library(raster)
 
-# mapping geographical data
-# CONFIRM IF EVEN NECESSARY
-library(rnaturalearth)
-library(rnaturalearthdata)
-
 # uncertainty analysis for species distribution models
 library(usdm)
 
@@ -57,7 +43,7 @@ library(usdm)
 library(tidyr)
 library(dplyr)
 
-#plotting
+# plotting
 library(ggplot2)
 
 # read shapefiles
@@ -66,13 +52,9 @@ library(sf)
 # generate virtual species distributions
 library(virtualspecies)
 
-# hypervolume anaylsis
+# hypervolume analysis
 library(hypervolume)
 
-# OSM retrieval
-# CONFIRM IF OSMDATA IS EVEN NECESSARY
-# open street map package to obtain small data set road maps
-library(osmdata)
 # package for extracting large datasets (i.e. countries)
 library(osmextract)
 
@@ -81,7 +63,6 @@ library(viridis)
 
 #-------------------------------------------------------------------------------
 # PRELIMINARY STEP 2: SET WORKING DIRECTORY
-
 
 setwd("~/UNIBO/Thesis/R Thesis Project/Thesis Data")
 
@@ -178,6 +159,20 @@ bio_AOI <- mask(bio_AOI, AOI, inverse=F)
 
 # plot one of the bio rasters for visual confirmation
 plot(bio_AOI[[1]])
+
+# Convert the raster to a data frame for ggplot2
+AOI_bio_temp_rstr <- raster(bio_AOI[[1]])
+AOI_bio_temp_df <- as.data.frame(rasterToPoints(AOI_bio_temp_rstr), stringsAsFactors = FALSE)
+colnames(AOI_bio_temp_df) <- c("Longitude", "Latitude", "Mean_Temperature")
+
+# Plot with ggplot2
+ggplot(AOI_bio_temp_df, aes(x = Longitude, y = Latitude, fill = Mean_Temperature)) +
+  geom_raster() +
+  scale_fill_viridis_c(name = "Annual Mean Temp (Celsius)", option = "D") +
+  labs(title = "CHELSA Variable: Annual Mean Temprerature (AOI)",
+       x = "Longitude",
+       y = "Latitude") +
+  theme_minimal()
 # the bio variables are now selected only within the AOI
 
 print(bio_AOI)
@@ -215,18 +210,19 @@ names(bio_AOI)
 # BIO18 = Precipitation of Warmest Quarter
 # BIO19 = Precipitation of Coldest Quarter
 
-# to turn into RasterLayer
-# worldclim_raster <- raster(worldclim)
-
 # don't change the names of the bio variables yet because some of them will be
 # ...eliminated. Bio variable names will be changed after multicolinearity test
 
 ################################################################################
 # OBJECTIVE 3: Isolate Environmental Variables within Alpine Climate Locations in AOI
+  # PART A: Import alpine climate shapefile and filter to AOI mountain range
+  # PART B: Mask the 19 CHELSA bio variables to AOI alpine climate polygons
 # PURPOSE: The bio variables are now isolated by the AOI but now need to be isolated
   #... further to the alpine climate locations within the AOI. This information will
   #...be needed for the alpine VS creation.
 
+#-------------------------------------------------------------------------------
+# PART A: Import alpine climate shapefile and filter to AOI mountain range
 # retrieve the alpine climate location shapefile that was externally downloaded
 global_alp <- st_read("alp_shpfiles/alpineclimate/global_alpine_30m_v1_1.shp")
 # this is the global alpine locations
@@ -251,20 +247,26 @@ plot(alp_AOI$geometry)
 
 # save the cropped alpine AOI
 save(alp_AOI, file = "alp_shpfiles/alpineclimate/alp_AOI.shp")
-
 # load(file = "alp_shpfiles/alpineclimate/alp_AOI.shp")
 
 dev.off()
 
 # plot the two alpine climate shapefile with the AOI shapefile for confirmation
 ggplot() + 
-  geom_sf(data = alp_AOI, fill = 'blue', color = 'blue', alpha = 0.5) +
-  geom_sf(data = AOI, color = 'black', alpha = 0.5) + 
+  geom_sf(data = alp_AOI, aes(fill = "Alpine Climate Locations"), color = 'aquamarine4', alpha = 0.5) +
+  geom_sf(data = AOI, aes(fill = "European Alps Boundary"), color = 'black', fill = NA, alpha = 0.5) + 
   coord_sf(xlim = c(4.735802, 17.000550), ylim = c(43.135029, 48.364782)) +
+  scale_fill_manual(name = "Legend", values = c("Alpine Climate Locations" = "aquamarine4")) +
+  labs(title = "Alpine Climate Locations within AOI (European Alps)",
+       x = "Longitude",
+       y = "Latitude") +
   theme_minimal()
 # the EA alpine climate locations can be observed inside the AOI
 
 dev.off()
+
+#-------------------------------------------------------------------------------
+# PART B: Mask the 19 CHELSA bio variables to AOI alpine climate polygons
 
 # the alpine bio variables now need to be isolated
 # use the mask function to isolate only the bio variables within the AOI alpine climate locations
@@ -274,16 +276,22 @@ bio_AOI_alp <- mask(bio_AOI, alp_AOI, inverse = FALSE)
 # plot one of the variables to see if isolation/masking was successful
 plot(bio_AOI_alp[[1]])
 # the plot now shows the isolated alpine climate areas in the bio variable plot
-## REMEMBER TITLE, COLORS, ETC FOR PLOT
 
 # plot the bio variables within the alpine climate locations in the AOI
-temp_bio_rstr <- raster(bio_AOI_alp[[1]])
-temp_bio_df <- as.data.frame(rasterToPoints(temp_bio_rstr), stringsAsFactors = FALSE)
+alp_bio_temp_rstr <- raster(bio_AOI_alp[[1]])
+alp_bio_temp_df <- as.data.frame(rasterToPoints(alp_bio_temp_rstr), stringsAsFactors = FALSE)
+colnames(alp_bio_temp_df)[3] <- "mean_temp"
 
+# Plot with ggplot2
 ggplot() +
-  geom_raster(data = temp_bio_df, aes(x = x, y = y, fill=Annual.Mean.Temp)) +
-  geom_sf(data = AOI, fill=NA) +
-  theme_minimal()
+  geom_raster(data=alp_bio_temp_df, aes(x = x, y = y, fill = mean_temp)) +
+  scale_fill_viridis_c(name = "Annual Mean Temp (Celsius)", option = "D") +
+  labs(title = "CHELSA Variable: Annual Mean Temperature (Alpine Climate Locations)",
+       x = "Longitude",
+       y = "Latitude") +
+  geom_sf(data=AOI, fill=NA)+
+    theme_minimal()
+# the bio variables are now selected only within the AOI
 
 dev.off()
 
