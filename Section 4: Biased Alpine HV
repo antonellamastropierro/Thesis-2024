@@ -1,12 +1,16 @@
 # SECTION IV: BIASED ALPINE HV
 
-# OBJECTIVE 1: Retrieve Bio Variables for Analysis
-# OBJECTIVE 2: Create Unbiased Sample HV and Observe Volume Change over Number of Samples
+# OBJECTIVE 1: Extract Biased Sampling Bio Variables for Analysis
+# OBJECTIVE 2: Create Biased Sample HV and Observe Volume Change over Number of Samples for 10 Simulations
 
 ################################################################################
-# SECTION III UNBIASED ALPINE HV  - RECAP ### FIX ###
-# Extracted and Standardized Total Realized Niche and Initial 100 Occurrence Bio Variables
-# Created and Expanded Unbiased Estimated HV until Stabilization/Depletion of Unique Cells
+# SECTION III UNBIASED ALPINE HV  - RECAP
+# Standardized the Bio Variable Raster Layers for Consistency with HV Calculation
+# Created two HV Calculation Functions:
+  # 1: HV Gaussian Calculation
+  # 2: HV Accumulation Calculation and Convergence Criteria Check
+# Extracted Unbiased Sampling Bio Variables
+# Created Unbiased Sample HV and Observe Volume Change over Number of Samples for 10 Simulations
 
 ################################################################################
 # LEGEND:
@@ -21,11 +25,11 @@
 # rstr = raster
 # std = standardized
 ################################################################################
-# OBJECTIVE 1: Retrieve Bio Variables for Analysis
-# a standardized bio variable raskterstack was already created in Section III
+# OBJECTIVE 1: Retrieve Biased Bio Variables for Analysis
+# a standardized bio variable rasterstack was already created in Section III
 
 # first merge bio variables with sample locations
-# the bio variables have already been created into a dataframe in Section 2
+# the bio variables have already been created into a dataframe in Section II
 
 # create a dataframe of the biased points
 occ_bias_1_df <- as.data.frame(bias_pts)
@@ -48,6 +52,9 @@ glimpse(bio_bias_1_df)
 
 # eliminate all the non-bio variable columns
 bio_bias_1_df <- bio_bias_1_df[ , -c(1,2,10:14)]
+
+# save the bias sample dataframe
+save(bio_bias_1_df, file="VS_HV/bio_bias_1_df")
 
 # result is dataframe containing the 29 biased samples and their bio variables
 ################################################################################
@@ -111,7 +118,7 @@ combined_bias_df <- do.call(rbind, lapply(seq_along(sim_bias_list), function(sim
 combined_bias_df
 
 #-------------------------------------------------------------------------------
-# PART 2: Plot the average biased HV volume over number of samples from the 10 Simulations
+# PART B: Plot the average biased HV volume over number of samples from the 10 Simulations
 
 # Mean predictions (LOESS): x sequence 
 x_seq_bias <- seq(min(combined_bias_df$num_occ), max(combined_bias_df$num_occ), length.out = 100)
@@ -136,5 +143,6 @@ ggplot() +
   theme_minimal()
 
 ################################################################################
-# CONCLUSION:
-
+# CONCLUSION: the resulting mean HV volume for the biased sampling is significantly
+  #...larger than the mean HV volume for the unbiased samples. Convergence was not
+  #...achieved for any of the biased simulations
