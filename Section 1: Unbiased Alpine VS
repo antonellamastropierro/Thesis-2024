@@ -1,8 +1,8 @@
 # SECTION 1: UNBIASED ALPINE VS
 
 # OBJECTIVE 1: Create and Customize an Alpine Climate-Specific Unbiased VS for the AOI
-# OBJECTIVE 2: Create Presence/Absence (Realized Niche) of VS
-# OBJECTIVE 3: Conduct Initial Sampling Batch of Unbiased Sampling of Occurrences
+# OBJECTIVE 2: Create Presence/Absence (Total Realized Niche) of VS
+# OBJECTIVE 3: Conduct Presence-Only Sampling Batch of Unbiased Sampling of Occurrences (Actual Realized Niche)
 
 ################################################################################
 # SECTION 0: PRELIMINARY RECAP
@@ -36,8 +36,8 @@
 # PURPOSE: Using the isolated bio variables values in the alpine climate conditions
   #...of the  AOI, an unbiased custom alpine climate species can be created to
   #....be sampled.
-# PART A: Retrieve mean and standard deviation values for selected bio variables
-# PART B: Create suitability map of alpine-specific unbiased VS in the AOI using alpine parameters
+  # PART A: Retrieve mean and standard deviation values for selected bio variables
+  # PART B: Create suitability map of alpine-specific unbiased VS in the AOI using alpine parameters
 
 #-------------------------------------------------------------------------------
 # PART A: Retrieve mean and standard deviation values for selected bio variables
@@ -80,7 +80,7 @@ summarize_all(bio_AOI_alp_df, sd)
 # these values will be used as parameters to create a custom alpine-specific VS
 
 #-------------------------------------------------------------------------------
-# PART B: Create suitability map of alpine-specific unbiased VS in the AOI using alpine parameters
+# PART B: Create suitability map of alpine-specific VS in the AOI using alpine parameters
 
 # first create parameters for alpine species using the mean and SD values retrieved from PART A
 # the raster used will be the AOI bio variable raster to show the VS suitability in relation to the AOI
@@ -96,10 +96,23 @@ alp_pmtrs <- formatFunctions(x=bio_AOI,
 # input the alpine-specific parameters to generate an alpine-specific VS
 alp_vs <- generateSpFromFun(raster.stack = bio_AOI,
                               parameters = alp_pmtrs,
-                              plot = TRUE)
+                              plot = F)
 # shows the env. suitability for AOI specific to alpine species (scale of 0 to 1)
 # because the parameters are fixed, the suitability will not change if generateSpFromFun
   #...is inputted again. The output will be the same
+
+# create a plot showing the environmental suitability plot
+vs_suit_rstr <- raster(alp_vs$suitab.raster)
+vs_suit_df <- as.data.frame(rasterToPoints(vs_suit_rstr), stringsAsFactors = FALSE)
+
+# Plot with ggplot2
+ggplot() +
+  geom_raster(data=vs_suit_df, aes(x = x, y = y, fill = VSP.suitability)) +
+  scale_fill_viridis_c(name = "Suitability Range", option = "D") +
+  labs(title = "Alpine Virtual Species: Environmental Suitability",
+       x = "Longitude",
+       y = "Latitude") +
+  theme_minimal()
 
 dev.off()
 
@@ -116,16 +129,9 @@ plotResponse(alp_vs)
 dev.off()
 
 ################################################################################
-# OBJECTIVE 2: Create Presence/Absence (Realized Niche) of VS and Sample First 100 Occurrences
-# PURPOSE: to retrieve the actual realized niche of the alpine VS
-# PART A: Convert VS to presence/absence (total realized niche)
-# PART B: Collect first occurrence samples (N: 1-100)
-
-#-------------------------------------------------------------------------------
-# PART A: Convert VS to presence/absence (total realized niche)
-
-# now that the alpine VS is created, it can be converted to a P/A plot in order to
-  # determine it's realized niche. The realized niche will be the presence-only raster
+# OBJECTIVE 2: Create the Presence/Absence (Total Realized Niche) of VS
+# PURPOSE: creating a logistical presence threshold will result in a binary presence/absence
+  #...virtual species that equates to the species' total realized niche
 
 # use converttoPA() function to convert the suitability plot into a binary presence/absence plot
 alp_pa_1 <- convertToPA(alp_vs, alpha = -0.05, beta = 'random', species.prevalence = 0.05, plot = F)
@@ -144,7 +150,7 @@ alp_pa_1 <- convertToPA(alp_vs, alpha = -0.05, beta = 'random', species.prevalen
   #...the probability of occurrence at lower altitudes where road systems are present so
   #...that some biased data based on roadside bias can be retrieved.
 
-
+# view presence/absence details
 alp_pa_1
 # probabilistic method = logistic
 # beta = 0.22
@@ -160,6 +166,20 @@ load(file = "VS_AOI_Unbiased/alp_pa_1")
 plot(alp_pa_1$pa.raster)
 # for suitability: alp_pa$suitab.raster
 # for prob. of occurrence: alp_pa$probability.of.occurrence
+
+alp_pa_1_rstr <- raster(alp_pa_1$pa.raster)
+alp_pa_1_df <- as.data.frame(rasterToPoints(alp_pa_1_rstr))
+
+# Plot with ggplot2
+pa_plot <- ggplot(alp_pa_1_df, aes(x = x, y = y, fill = factor(lyr.1))) +
+  geom_raster() +
+  scale_fill_manual(name = "Presence/Absence",
+                    values = c("0" = "black", "1" = "yellow"),
+                    labels = c("0" = "Absence", "1" = "Presence")) +
+  labs(title = "Alpine Virtual Species: Presence/Absence (Total Realized Niche)",
+       x = "Longitude",
+       y = "Latitude") +
+  theme_minimal()
 
 # to view the number of presences and absence number of cells
 freq(alp_pa_1$pa.raster)
@@ -184,18 +204,26 @@ alp_occ_1 <- sampleOccurrences(alp_pa_1, type = "presence only", n = 200,
 
 # save the first 200 samples
 save(alp_occ_1, file = "VS_AOI_Unbiased/alp_occ_1")
+#load(file = "VS_AOI_Unbiased/alp_occ_1")
 
-load(file = "VS_AOI_Unbiased/alp_occ_1")
+# convert to df for plotting
+alp_occ_1_df <- alp_occ_1$sample.points
 
-# plot against the PA and probability of occurrence for visualization
-par(mfrow = c(1,2))
-plot(alp_pa_1$pa.raster)
-points(alp_occ_1$sample.points, pch=19, col="red")
-
-plot(alp_pa_1$probability.of.occurrence)
-points(alp_occ_1$sample.points, col="red")
-# shows some occurrences sampled out of presence points because it's based on
-  #...probability of occurrence
+# plot against the PA for visualization
+ggplot() +
+  geom_raster(data = alp_pa_1_df, aes(x = x, y = y, fill = factor(lyr.1)), alpha = 0.7) +
+  geom_point(data = alp_occ_1_df, aes(x = x, y = y, color = factor(Observed)), size = 1.2) +
+  scale_fill_manual(name = "Presence/Absence",
+                    values = c("0" = "black", "1" = "yellow"),
+                    labels = c("0" = "Absence", "1" = "Presence")) +
+  scale_color_manual(name = "Occurrences (200)",
+                     values = c("0" = "black", "1" = "red"),
+                     labels = c("0" = "Absence", "1" = "Presence-Only Occurrence")) +
+  labs(title = "Alpine Virtual Species: 200 Occurrences (Presence Only)",
+       x = "Longitude",
+       y = "Latitude") +
+  theme_minimal()
+# shows the locations of the presence-only occurrences
 
 dev.off()
 #-------------------------------------------------------------------------------
