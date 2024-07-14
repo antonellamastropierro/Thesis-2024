@@ -1,16 +1,16 @@
 # SECTION III: UNBIASED ALPINE HV
 
-# PRELIMINARY 1: Standardize bio variable raster layers
+# PRELIMINARY 1: Standardize Bio Variable Raster Layers
 # PRELIMINARY 2: Create Hypervolume Functions
-# OBJECTIVE 1: Retrieve Bio Variables for Analysis
-# OBJECTIVE 2: Create Unbiased Sample HV and Observe Volume Change over Number of Samples
+# OBJECTIVE 1: Extract Unbiased Sampling Bio Variables for Analysis
+# OBJECTIVE 2: Create Unbiased Sample HV and Observe Volume Change over Number of Samples for 10 Simulations
 
 ################################################################################
 # SECTION II RECAP: BIASED ALPINE VS
 # Created distance from roads and sampling probability rasters for the AOI
 # Extracted the sampling probability for the 200 presence-only unbiased samples
 # Filtered out the unbiased sampling occurrences with 100% sampling probability (within 1km from road)
-# Retrieved Biased Sampling Points (24 biased points out of 200 unbiased points)
+# Retrieved Biased Sampling Points (29 biased points out of 200 unbiased points)
 
 ################################################################################
 # LEGEND:
@@ -83,7 +83,7 @@ writeRaster(bio_AOI_stk_std, file = "VS_HV/bio_AOI_stk_std.tif")
 # PRELIMINARY 2: Create Hypervolume Functions
 # create the following functions:
   # 1. calculate the hypervolume
-  # 2. calculate the hypervolume of a subset of data and check for convergence based on defined criteria
+  # 2. calculate the hypervolume accumulation of a subset of data and check for convergence based on defined criteria
 
 # Function 1: HV calculation function (df = dataframe)
 calc_hv <- function(df) {
@@ -91,7 +91,7 @@ calc_hv <- function(df) {
   return(occ_hv@Volume) # returns the volume component of the hypervolume
 }
 
-# Function 2: Calculation of accumulation curve of a subset of the data
+# Function 2: Calculation of the hypervolume accumulation of a subset of the data
 calc_accum <- function(x, no, epsilon = 0.01) {
   # x = dataframe (unbiased/biased points)
   # no = parameter that specifies how many random rows will be selected from x
@@ -101,7 +101,7 @@ calc_accum <- function(x, no, epsilon = 0.01) {
   fx <- x %>% sample_n(size = 1) 
   volumes <- 0  # where to store the subset HV volumes
   num_occ <- 0  # store the subset number of occurrences
-  converged <- FALSE
+  converged <- FALSE # initialize indicating convergence is false
   
   for (i in 1:1000) {
     
@@ -117,7 +117,7 @@ calc_accum <- function(x, no, epsilon = 0.01) {
     volumes <- c(volumes, hv)
     num_occ <- c(num_occ, nrow(fx))
     
-    # Check for convergence
+    # Check for convergence (if the difference between one volume and the volume before it is less than epsilon (0.01), convergence = T)
     if (length(volumes) > 1 && abs(volumes[length(volumes)] - volumes[length(volumes) - 1]) < epsilon) {
       converged <- TRUE
       break
@@ -133,7 +133,7 @@ calc_accum <- function(x, no, epsilon = 0.01) {
 }
 
 ################################################################################
-# OBJECTIVE 1: Retrieve the Realized Niche Bio Variables for Analysis
+# OBJECTIVE 1: Extract Unbiased Sampling Bio Variables for Analysis
 # Purpose: The isolated bio variables of the actual realized niche and first 100 samples
   #... are needed for HV creation and analysis
 # Realized Niche = Presence Values from the Presence-Absence Plot (alp_pa_1)
@@ -142,7 +142,7 @@ calc_accum <- function(x, no, epsilon = 0.01) {
 
 #-------------------------------------------------------------------------------
 # PART A: Retrieve the Total Realized Niche Bio Variables (Presence Points)
-# CONFIRM IF THIS PART IS EVEN NECESSARY - EXTRACTING BIO VARAIBLES OF TOTAL
+# CONFIRM IF THIS PART IS EVEN NECESSARY - EXTRACTING BIO VARIABLES OF TOTAL
   # REALIZED NICHE
 
 # convert virtual species into a raster layer
@@ -205,7 +205,7 @@ calc_accum <- function(x, no, epsilon = 0.01) {
 # summary(sd(trn_df_1_std))
 
 #-------------------------------------------------------------------------------
-# PART B: Retrieve First 200 Sampled Occurrences with Their Respective Bio Variables
+# PART B: Extract Unbiased Sampling Bio Variables for Analysis
 
 # convert the standardized bio variables raster stack into a dataframe with their coordinates
 # can also do bio_AOI_pts_std <- as.data.frame(bio_AOI_stk_std, xy=T), but results with NAs
@@ -242,7 +242,7 @@ glimpse(bio_occ_1_df)
 
 # a dataframe containing the 200 unbiased sampled occurrences and bio variables has been created
 ################################################################################
-# OBJECTIVE 3: Create Unbiased Sample HV and Observe Volume Change over Number of Samples
+# OBJECTIVE 3: Create Unbiased Sample HV and Observe Volume Change over Number of Samples for 10 Simulations
   # PART A: Retrieve a subsample of the unbiased occurrence points that matches the same
     #...sampling effort as the biased points
   # PART B: Run the unbiased HV calculations for 10 simulations
