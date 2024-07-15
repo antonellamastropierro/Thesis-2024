@@ -107,7 +107,7 @@ for (sim in 1:num_sim) {
 print(convg_bias_info)
 
 # Combine all simulations into one dataframe
-combined_bias_df <- do.call(rbind, lapply(seq_along(sim_bias_list), function(sim) {
+sims_bias_df <- do.call(rbind, lapply(seq_along(sim_bias_list), function(sim) {
   do.call(rbind, lapply(sim_bias_list[[sim]], function(df) {
     df$sim <- sim
     df
@@ -115,27 +115,34 @@ combined_bias_df <- do.call(rbind, lapply(seq_along(sim_bias_list), function(sim
 }))
 
 # view resulting dataframe
-combined_bias_df
+sims_bias_df
+
+# save unbiased simsdataframe
+save(sims_bias_df, file = "VS_HV/sims_bias_df")
 
 #-------------------------------------------------------------------------------
 # PART B: Plot the average biased HV volume over number of samples from the 10 Simulations
 
-# Mean predictions (LOESS): x sequence 
-x_seq_bias <- seq(min(combined_bias_df$num_occ), max(combined_bias_df$num_occ), length.out = 100)
-loess_predictions_bias <- lapply(unique(combined_bias_df$num_occ), function(n) {
-  preds_bias <- sapply(sim_bias_list, function(lista) {
-    loess_fit_bias <- loess(volumes ~ num_occ, data = do.call(rbind, lista))
+# Mean predictions (LOESS): x sequence
+# NOT NEEDED???
+x_seq_bias <- seq(min(sims_bias_df$num_occ), max(sims_bias_df$num_occ), length.out = 100)
+
+loess_preds_bias <- lapply(unique(sims_bias_df$num_occ), function(n) {
+  preds_bias <- sapply(sim_bias_list, function(list) {
+    loess_fit_bias <- loess(volumes ~ num_occ, data = do.call(rbind, list))
     predict(loess_fit_bias, newdata = data.frame(num_occ = n))
   })
   data.frame(num_occ = n, hv_mean = mean(preds_bias, na.rm = TRUE))
 })
-predizioni_media_bias <- do.call(rbind, loess_predictions_bias)
 
-# PLOT
+# combine all mean predictions of each simulation into a dataframe (already LOESS fitted)
+mean_preds_bias <- do.call(rbind, loess_preds_bias)
+
+# # Plot the LOESS model for the 10 individual simulations along with the mean LOESS predictions
 ggplot() +
-  geom_smooth(data = combined_bias_df, aes(x = num_occ, y = volumes, group = sim), 
+  geom_smooth(data = sims_bias_df, aes(x = num_occ, y = volumes, group = sim), 
               method = "loess", se = FALSE, color = "grey", size = 0.5, alpha = 0.5) +
-  geom_line(data = predizioni_media_bias, aes(x = num_occ, y = hv_mean), 
+  geom_line(data = mean_preds_bias, aes(x = num_occ, y = hv_mean), 
             color = "turquoise4", size = 1.2) +
   labs(title = "Hypervolume Mean: Biased (10 Simulations)",
        x = "Number of Occurrences",
