@@ -24,6 +24,7 @@
 # occ = occurrences
 # rstr = raster
 # std = standardized
+# stk = rasterstack
 ################################################################################
 # PRELIMINARY 1: Standardize Bio Variable Raster Layers
 # Purpose: the selected bio variables currently have different means, standard deviations,
@@ -94,7 +95,7 @@ calc_hv <- function(df) {
 # Function 2: Calculation of the hypervolume accumulation of a subset of the data
 calc_accum <- function(x, no, epsilon = 0.01) {
   # x = dataframe (unbiased/biased points)
-  # no = parameter that specifies how many random rows will be selected from x
+  # no = parameter that specifies how many random rows will be selected from x for each iteration
   # epsilon = convergence threshold
   
   # Initializes with a random row within the dataframe
@@ -129,9 +130,9 @@ calc_accum <- function(x, no, epsilon = 0.01) {
     }
   }
   result <- bind_cols(volumes = volumes, num_occ = num_occ)   
-  return(list(result=result, converged = converged))
+  return(list(result=result, converged = converged)) 
 }
-
+# the result is a list containing the volumes, number of occurrences, and convergence for each iteration
 ################################################################################
 # OBJECTIVE 1: Extract Unbiased Sampling Bio Variables for Analysis
 # Purpose: The isolated bio variables of the actual realized niche and first 100 samples
@@ -278,8 +279,12 @@ save(bio_occ_1_df_sub, file = "VS_HV/bio_occ_1_df_sub")
 # store number of simulations
 num_sim <- 10
 
-# list of the occurrences to be tested (start at 5, by 5, until 35)
+# list of the occurrences to be tested (start at 10, by 10, until 35)
 n_occ_list <- c(seq(from = 10, to = stop, by = 10), stop)
+# Iteration 1 = 10 samples
+# Iteration 2 = 20 samples
+# Iteration 3 = 30 samples
+# Iteration 4 = 35 samples
 
 # List to store the simulations
 sim_list <- list()
@@ -307,13 +312,15 @@ for (sim in 1:num_sim) {
   # Add the occurrence list to the simulation list
   sim_list[[sim]] <- list_output_occ
 }
-
+# The end result of the loop is a list of 10 simulations, each simulation containing
+  #...its own individual list containing the results (volumes, occurrences) and converged
+  #...for each iteration (10, 20, 30, 35)
 
 # View the convergence information
 print(convg_info)
 
 # Combine all simulations into one dataframe
-combined_df <- do.call(rbind, lapply(seq_along(sim_list), function(sim) {
+sims_df <- do.call(rbind, lapply(seq_along(sim_list), function(sim) {
   do.call(rbind, lapply(sim_list[[sim]], function(df) {
     df$sim <- sim
     df
@@ -321,27 +328,49 @@ combined_df <- do.call(rbind, lapply(seq_along(sim_list), function(sim) {
 }))
 
 # view resulting dataframe
-combined_df
+sims_df
+
+# save unbiased simsdataframe
+save(sims_df, file = "VS_HV/sims_df")
 
 #--------------------------------------------------------------------------------
-# PART C: Plot the average unbiased HV volume over number of samples from the 10 Simulations
+# PART C: Calculate the Mean Prediction and Plot the average unbiased HV volume over number of samples from the 10 Simulations
 
-# Mean predictions (LOESS): x sequence 
-x_seq <- seq(min(combined_df$num_occ), max(combined_df$num_occ), length.out = 100)
-loess_predictions <- lapply(unique(combined_df$num_occ), function(n) {
-  preds <- sapply(sim_list, function(lista) {
-    loess_fit <- loess(volumes ~ num_occ, data = do.call(rbind, lista))
+# Mean predictions (LOESS) Sequence
+# creates sequence of numbers
+# IS THIS NEEDED? NOT USED
+pred_seq <- seq(min(sims_df$num_occ), max(sims_df$num_occ), length.out = 100)
+# get the minimum and maximum number of occurrences from the combined simulation data frame sims_df
+# length.out = 100: a sequence of 100 equally spaced numbers between the minimum and maximum number of occurrences.
+
+# iterates over each unique occurrence number value.
+# Fits a LOESS (Locally Estimated Scatterplot Smoothing) model for each number
+  # ...of occurrence to predict hv volume using the simulation data
+# LOESS model: Smooths out noise and variations to get a better understanding of relationship between HV volume and # occurrences
+# lapply: apply the function (n) to each unique number of occurrence (10, 20, 30, 35)
+loess_preds <- lapply(unique(sims_df$num_occ), function(n) {
+  # iterate over each unique number of occurrence (n)
+  preds <- sapply(sim_list, function(list) {
+    # Fit LOESS model
+    loess_fit <- loess(volumes ~ num_occ, data = do.call(rbind, list))
+    # predict HV for current number of occurrences (n)
     predict(loess_fit, newdata = data.frame(num_occ = n))
   })
+  # calculate mean predictions
   data.frame(num_occ = n, hv_mean = mean(preds, na.rm = TRUE))
 })
-predizioni_media <- do.call(rbind, loess_predictions)
+# what this code does it fits a LOESS model for each unique occurrence value (10, 20, 30, 35)
+  #....in each simulation. Then it takes the average LOESS prediction of each unique occurrence value
+  #...of all 10 simulations.
 
-# PLOT
+# combine all mean predictions of each simulation into a dataframe (already LOESS fitted)
+mean_preds <- do.call(rbind, loess_preds)
+
+# Plot the LOESS model for the 10 individual simulations along with the mean LOESS predictions
 ggplot() +
-  geom_smooth(data = combined_df, aes(x = num_occ, y = volumes, group = sim), 
-              method = "loess", se = FALSE, color = "grey", size = 0.5, alpha = 0.5) +
-  geom_line(data = predizioni_media, aes(x = num_occ, y = hv_mean), 
+  geom_smooth(data = sims_df, aes(x = num_occ, y = volumes, group = sim), # data from all individual simulations
+              method = "loess", se = FALSE, color = "grey", size = 0.5, alpha = 0.5) + 
+  geom_line(data = mean_preds, aes(x = num_occ, y = hv_mean), # mean prediction LOESS
             color = "deeppink", size = 1.2) +
   labs(title = "Hypervolume Mean: Unbiased (10 Simulations)",
        x = "Number of Occurrences",
