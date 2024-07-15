@@ -1,7 +1,7 @@
 # SECTION V: UNBIASED AND BIASED HV COMPARISON
 
 # OBJECTIVE 1: Plot the Unbiased and Biased Results Together
-# OBJECTIVE 2: Create Unbiased Sample HV and Observe Volume Change over Number of Samples
+# OBJECTIVE 2: Quantify the Differences Between Unbiased and Biased Hypervolumes
 
 ################################################################################
 # SECTION IV UNBIASED ALPINE HV  - RECAP
@@ -24,22 +24,25 @@
 # OBJECTIVE 1: Plot the Unbiased and Biased Results Together
 
 # Combine unbiased and biased data
-combined_df$sampletype <- "unbiased"
-combined_bias_df$sampletype <- "biased"
-combined_data <- rbind(combined_df, combined_bias_df)
+sims_df$sampletype <- "unbiased"
+sims_bias_df$sampletype <- "biased"
+
+# not used in anything
+combined_sims_df <- rbind(sims_df, sims_bias_df)
 
 # Filter any NAs
-predizioni_media <- predizioni_media %>% filter(!is.na(num_occ) & !is.na(hv_mean))
-predizioni_media_bias <- predizioni_media_bias %>% filter(!is.na(num_occ) & !is.na(hv_mean))
+mean_preds <- filter(mean_preds, !is.na(num_occ) & !is.na(hv_mean))
+mean_preds_bias <- filter(mean_preds_bias, !is.na(num_occ) & !is.na(hv_mean))
 
+# Plot the mean LOESS predications for unbiased and biased HVs with their individual simulation results
 ggplot() +
   geom_smooth(data = combined_df, aes(x = num_occ, y = volumes, group = sim, color = "Unbiased"), 
               method = "loess", se = FALSE, size = 0.5, alpha = 0.5) +
   geom_smooth(data = combined_bias_df, aes(x = num_occ, y = volumes, group = sim, color = "Biased"), 
               method = "loess", se = FALSE, size = 0.5, alpha = 0.5) +
-  geom_line(data = predizioni_media, aes(x = num_occ, y = hv_mean, color = "Unbiased Mean"), 
+  geom_line(data = mean_preds, aes(x = num_occ, y = hv_mean, color = "Unbiased Mean"), 
             size = 1.2) +
-  geom_line(data = predizioni_media_bias, aes(x = num_occ, y = hv_mean, color = "Biased Mean"), 
+  geom_line(data = mean_preds_bias, aes(x = num_occ, y = hv_mean, color = "Biased Mean"), 
             size = 1.2) +
   labs(title = "HV Volume over Number of Occurrences: Unbiased vs. Biased",
        x = "Occurrences",
@@ -52,16 +55,19 @@ ggplot() +
 # OBJECTIVE 2: Quantify the Differences Between Unbiased and Biased Hypervolumes
 
 # retrieve max HV values for both unbiased and biased
+# final_unbiased <- tail(mean_preds, 1)
+# final_biased <- tail(mean_preds_bias, 1)
+max_unbiased <- subset(mean_preds, hv_mean == max(hv_mean))
+max_biased <- subset(mean_preds_bias, hv_mean == max(hv_mean))
 
-# End Sampling Values
-final_unbiased <- tail(predizioni_media, 1)
-final_biased <- tail(predizioni_media_bias, 1)
-final_results <- data.frame(
+# combine the results together in one dataframe
+max_results <- data.frame(
   type = c("unbiased", "biased"),
-  num_occ = c(final_unbiased$num_occ, final_biased$num_occ),
-  volumes = c(final_unbiased$hv_mean, final_biased$hv_mean)
+  num_occ = c(max_unbiased$num_occ, max_biased$num_occ),
+  volumes = c(max_unbiased$hv_mean, max_biased$hv_mean)
 )
-final_results
+
+max_results
 # unbiased: num_occ = 24, volume = 387.12
 # biased: num_occ = 15, volume = 4599.21
 
