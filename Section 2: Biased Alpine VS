@@ -145,15 +145,19 @@ d <- rast("VS_AOI_Biased/d.tif")
 d_rstr <- raster(d)
 
 # isolate the distance raster layer to the AOI
-d_rstr <- mask(d_rstr, AOI)
+d_AOI_rstr <- mask(d_rstr, AOI)
 
-plot(d_rstr)
+plot(d_AOI_rstr)
 
 # save the distance raster layer
 writeRaster(d_rstr, file = "VS_AOI_Biased/d_rstr.tif")
-
 # load the distance raster layer
-d_rstr <- raster("VS_AOI_Biased/d_rstr.tif")
+# d_rstr <- raster("VS_AOI_Biased/d_rstr.tif")
+
+# save the AOI distance raster layer
+writeRaster(d_AOI_rstr, file = "VS_AOI_Biased/d_AOI_rstr.tif")
+# load the AOI distance raster layer
+# d_AOI_rstr <- raster("VS_AOI_Biased/d_AOI_rstr.tif")
 
 # Plot the distance raster showing the distance gradient
 
@@ -162,7 +166,7 @@ d_df <- as.data.frame(rasterToPoints(d_rstr), xy = TRUE)
 
 # plot the distances from the roads in the AOI
 ggplot() +
-  geom_raster(data = d_df, aes_string(x = "x", y = "y", fill = 'd_rstr')) +
+  geom_raster(data = d_df, aes_string(x = "x", y = "y", fill = 'd_rstr')) + # fill is distance value column
   scale_fill_viridis_c(alpha = 1,
                        begin = 0,
                        end = 1) +
@@ -181,13 +185,17 @@ dev.off()
   #...raster in order to retrieve a subset of the unbiased occurrence samples that
   #...are within the 100% sampling probability cells (within 1 km from a road)
 
-# WHY DOES THIS WORK? RERASTERED IT WITHOUT THE MASKING
-d_raster <- raster(d)
-distances <- as.data.frame(d_raster)
+# for calculating the sampling probability, the unmasked distance raster needs to be
+  #...used to avoid the presence of NAs causing errors in the equation
+# convert the unmasked distance raster into a dataframe
+distances <- as.data.frame(d_rstr)
 
 # Sampling probability
-# EXPLAIN THIS
+# c = 1 in order to match the actual distances from the roads
 c <- 1
+# c * distances -> 1* distances meaning original distances are kept
+# log(c*distances) makes the values logarithmic, compressing larger values
+# log(max(c*distances)) normalizes distances by max value
 sampling_prob <- 1-(((log(c*distances))/(log(max(c*distances)))))
 
 # create a dataframe containg all the sampling probabilities
