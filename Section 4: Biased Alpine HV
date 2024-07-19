@@ -45,13 +45,17 @@ occ_bias_1_df$x <- round(occ_bias_1_df$x, 5)
 occ_bias_1_df$y <- round(occ_bias_1_df$y, 5)
 
 # merge the points and the bio variables together
-bio_bias_1_df <- merge(bio_AOI_df_std, occ_bias_1_df, by = c("x", "y"))
+bio_bias_1_df_xy <- merge(bio_AOI_df_std, occ_bias_1_df, by = c("x", "y"))
 
-glimpse(bio_bias_1_df)
+glimpse(bio_bias_1_df_xy)
 # result is 375 observations from the biased sampling with their respective bio variables
 
 # eliminate all the non-bio variable columns
-bio_bias_1_df <- bio_bias_1_df[ , -c(1,2,10:14)]
+bio_bias_1_df_xy <- bio_bias_1_df_xy[ , -c(10:14)]
+# keep one df with the coordinates for plotting
+
+# remove coordinates for HV calculation
+bio_bias_1_df <- bio_bias_1_df_xy[ , -c(1,2)]
 
 # save the bias sample dataframe
 save(bio_bias_1_df, file="VS_HV/bio_bias_1_df")
