@@ -98,6 +98,34 @@ ggplot(long_data, aes(x = variable, y = value, fill = source)) +
        fill = "Dataset") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+#################################################################################
+# PLOT UNBIASED AND BIASED SAMPLES AGAINST SUITABILITY MAP
+# Convert dataframes to sf objects
+bio_occ_1_sf <- st_as_sf(bio_occ_1_df_xy_sub, coords = c("x", "y"), crs = 4326)
+bio_bias_1_sf <- st_as_sf(bio_bias_1_df_xy, coords = c("x", "y"), crs = 4326)
+
+
+suit_rstr <- raster(alp_pa_1$suitab.raster)
+
+# Convert raster to data frame
+suit_df <- as.data.frame(rasterToPoints(suit_rstr), xy = TRUE)
+
+# Rename columns for easier use
+colnames(suit_df) <- c("x", "y", "suitability")
+
+# Plot unbiased and biased samples
+ggplot() +
+  geom_raster(data = suit_df, aes(x = x, y = y, fill = suitability)) +
+  scale_fill_viridis_c() +
+  geom_sf(data = OSM_AOI$geometry, color = "black", size = 0.25) +
+  geom_sf(data = bio_occ_1_sf, aes(color = "Unbiased"), size = 1.2, shape = 16) +  # Unbiased points
+  geom_sf(data = bio_bias_1_sf, aes(color = "Biased"), size = 1.2, shape = 16) +  # Biased points
+  scale_color_manual(values = c("Unbiased" = "green", "Biased" = "red"), name = "Sampling Points") +
+  theme_bw() +
+  theme_minimal() +
+  labs(title = "AOI: Biased and Unbiased Sampling Results",
+       fill = "Suitability", x = 'Longitude', y = 'Latitude')
+
 ################################################################################
 # CONCLUSION:
   # Unbiased: The smaller HV suggests that the data points are more clustered or cover a more restricted range in the n-dimensional space.
