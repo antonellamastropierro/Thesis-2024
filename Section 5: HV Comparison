@@ -71,6 +71,33 @@ max_results
 # unbiased: num_occ = 232, volume = 175.40
 # biased: num_occ = 200, volume = 6189.62
 
+#------------------------------------------------------------------------------
+# Create Boxplot Showing Central Tendency Differences between biased and unbiased
+
+# unbiased dataframe = bio_occ_1_df_sub
+# biased dataframe = bio_bias_1_df
+
+# Add source labels
+bio_occ_1_df_sub$source <- 'Biased'
+bio_bias_1_df$source <- 'Unbiased'
+
+# Combine the two dataframes
+combined_data <- rbind(bio_occ_1_df_sub, bio_bias_1_df)
+
+# Pivot the combined dataframe to long format
+long_data <- combined_data %>%
+  pivot_longer(cols = -source, names_to = "variable", values_to = "value")
+
+# Create the boxplot
+ggplot(long_data, aes(x = variable, y = value, fill = source)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Central Tendency Plot Comparing Ranges of Each Variable",
+       x = "Variables",
+       y = "Values",
+       fill = "Dataset") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
 ################################################################################
 # CONCLUSION:
   # Unbiased: The smaller HV suggests that the data points are more clustered or cover a more restricted range in the n-dimensional space.
