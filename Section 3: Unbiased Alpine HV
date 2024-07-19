@@ -8,9 +8,9 @@
 ################################################################################
 # SECTION II RECAP: BIASED ALPINE VS
 # Created distance from roads and sampling probability rasters for the AOI
-# Extracted the sampling probability for the 200 presence-only unbiased samples
+# Extracted the sampling probability for the 5000 presence-only unbiased samples
 # Filtered out the unbiased sampling occurrences with 100% sampling probability (within 1km from road)
-# Retrieved Biased Sampling Points (29 biased points out of 200 unbiased points)
+# Retrieved Biased Sampling Points (375 biased points out of 5000 unbiased points)
 
 ################################################################################
 # LEGEND:
@@ -227,13 +227,14 @@ alp_occ_1_df$y <- round(alp_occ_1_df$y, 5)
 
 # merge the 5000 sampled occurrences with the bio variables by their coordinates
 # now that the coords are aligned, merge dataframes together by coords (x,y)
-bio_occ_1_df <- merge(bio_AOI_df_std, alp_occ_1_df, by = c("x", "y"))
+bio_occ_1_df_xy <- merge(bio_AOI_df_std, alp_occ_1_df, by = c("x", "y"))
+# keep one unbiased df for plotting
 
-glimpse(bio_occ_1_df)
+glimpse(bio_occ_1_df_xy)
 # dataframe contains 5000 observations (sample points) with their respective bio variable values
 
 # now that the dataframes are merged, the coordinate columns can be eliminated
-bio_occ_1_df <- bio_occ_1_df[ , c(-1,-2)]
+bio_occ_1_df <- bio_occ_1_df_xy[ , c(-1,-2)]
 
 # confirm remaining columns are all bio variables
 glimpse(bio_occ_1_df)
@@ -263,7 +264,12 @@ stop <-  ceiling(nrow(bias_pts) + 0.2 * (nrow(bias_pts)))
 # result is a stopping point of 450 samples (amount of unbiased samples to be retrieved)
 
 # Retrieve a random subsample of 450 points from the unbiased points
-bio_occ_1_df_sub <- bio_occ_1_df[sample(nrow(bio_occ_1_df), stop), ]
+# first from unbiased dataframe with coordinates to be used for plotting
+bio_occ_1_df_xy_sub <- bio_occ_1_df_xy[sample(nrow(bio_occ_1_df), stop), ]
+# to be used for plotting
+
+# remove coordinates from subset df for HV calculation
+bio_occ_1_df_sub <- bio_occ_1_df_xy_sub( , -c(1,2))
 # now the unbiased points contain 450 randomly selected points from the unbiased point dataset
 
 # save the random subsample
