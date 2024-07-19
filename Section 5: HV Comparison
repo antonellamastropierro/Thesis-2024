@@ -36,9 +36,9 @@ mean_preds_bias <- filter(mean_preds_bias, !is.na(num_occ) & !is.na(hv_mean))
 
 # Plot the mean LOESS predications for unbiased and biased HVs with their individual simulation results
 ggplot() +
-  geom_smooth(data = combined_df, aes(x = num_occ, y = volumes, group = sim, color = "Unbiased"), 
+  geom_smooth(data = sims_df, aes(x = num_occ, y = volumes, group = sim, color = "Unbiased"), 
               method = "loess", se = FALSE, size = 0.5, alpha = 0.5) +
-  geom_smooth(data = combined_bias_df, aes(x = num_occ, y = volumes, group = sim, color = "Biased"), 
+  geom_smooth(data = sims_bias_df, aes(x = num_occ, y = volumes, group = sim, color = "Biased"), 
               method = "loess", se = FALSE, size = 0.5, alpha = 0.5) +
   geom_line(data = mean_preds, aes(x = num_occ, y = hv_mean, color = "Unbiased Mean"), 
             size = 1.2) +
@@ -68,8 +68,8 @@ max_results <- data.frame(
 )
 
 max_results
-# unbiased: num_occ = 24, volume = 387.12
-# biased: num_occ = 15, volume = 4599.21
+# unbiased: num_occ = 232, volume = 175.40
+# biased: num_occ = 200, volume = 6189.62
 
 ################################################################################
 # CONCLUSION:
