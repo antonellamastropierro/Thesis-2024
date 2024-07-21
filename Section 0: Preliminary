@@ -11,7 +11,7 @@
   # bio = CHELSA environmental variables
   # alp = alpine climate locations
 ################################################################################
-# PRELIMINARY STEP 1: INSTALL AND LOAD PACKAGES
+# PRELIMINARY 1: INSTALL AND LOAD PACKAGES
 
 install.packages("virtualspecies")
 install.packages("raster")
@@ -62,12 +62,9 @@ library(osmextract)
 library(viridis)
 
 #-------------------------------------------------------------------------------
-# PRELIMINARY STEP 2: SET WORKING DIRECTORY
+# PRELIMINARY 2: SET WORKING DIRECTORY
 
 setwd("~/UNIBO/Thesis/R Thesis Project/Thesis Data")
-
-# create color palette
-vl <- viridis(500, option = "D")
 
 ################################################################################
 # OBJECTIVE 1: Retrieve the AOI (European Alps) shapefile
@@ -102,16 +99,12 @@ AOI <- filter(EUR_mtn, name_mm == "Alps")
 plot(AOI$geometry)
 # the plot shows the delineated European Alp mountain range
 
-# get bounding box of EA mountain range to be used for Objective 2
-st_bbox(AOI)
-# xmin = 4.735802, xmax = 17.000550, ymin = 43.135029, ymax = 48.364782
-
 # save the Alps and European alpine climate shapefiles for easier use later
 save(AOI, file = "alp_shpfiles/eu_mtn/AOI.shp")
-
 # to load the file
 # load(file="alp_shpfiles/eu_mtn/AOI.shp")
 
+# get extent of AOI
 extent(AOI)
 # xmin       : 4.735802 
 # xmax       : 17.00055 
@@ -150,7 +143,8 @@ bio_AOI <- rast(bio_AOI_rastlist)
 # Plot one of the variables to confirm cropping
 plot(bio_AOI[[1]])
 # Extent matches the shapefile's extent of Europe
-### REMEMBER TO EDIT PLOT WITH COLORS, TITLE, ETC
+
+# check extent for confirmation
 ext(bio_AOI)
 
 # the bio variables are now cropped to the AOI's extent, but need to be isolated to
