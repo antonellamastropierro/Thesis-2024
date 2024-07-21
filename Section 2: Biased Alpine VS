@@ -21,8 +21,8 @@
 # pa = presence/absence
 # occ = occurrences
 # rstr = raster
-# arn = actual realized niche
-# std = standardized
+# sprstr = spatraster
+# vctr = spatvector
 # OSM = open street map
 ################################################################################
 
@@ -114,11 +114,6 @@ dev.off()
   #... in order to be converted into a raster
 OSM_AOI_vctr <- vect(OSM_AOI$geometry)
 
-ext(bio_AOI)
-# 4.73319370555001, 16.99986032315, 43.13319391195, 48.36652722435 (xmin, xmax, ymin, ymax)
-ext(OSM_AOI)
-# 4.74153984570888, 16.9589097481728, 43.135291, 48.350703 (xmin, xmax, ymin, ymax)
-
 # create a template raster using a raster layer of the bio variable raster in order
   # ... to provide the same resolution and extent
 rstr_tmpt <- as(bio_AOI[[1]], "SpatRaster")
@@ -146,6 +141,7 @@ d_rstr <- raster(d)
 # isolate the distance raster layer to the AOI
 d_AOI_rstr <- mask(d_rstr, AOI)
 
+# confirm the masked distance raster
 plot(d_AOI_rstr)
 
 # save the distance raster layer
@@ -166,9 +162,7 @@ d_df <- as.data.frame(rasterToPoints(d_rstr), xy = TRUE)
 # plot the distances from the roads in the AOI
 ggplot() +
   geom_raster(data = d_df, aes_string(x = "x", y = "y", fill = 'd_rstr')) + # fill is distance value column
-  scale_fill_viridis_c(alpha = 1,
-                       begin = 0,
-                       end = 1) +
+  scale_fill_viridis_c() +
   geom_sf(data = OSM_AOI$geometry, color = "black", size = 0.5) +
   theme_bw() +
   theme_minimal() +
@@ -208,13 +202,14 @@ sampling_prob_df[sampling_prob_df > 1] <- 1
 # New spatraster with probability to be sampled instead of distances
 prob_sprstr <- classify(d, cbind(values(d), sampling_prob_df))
 
-# save the probablility spatraster
+# save the probability spatraster
 writeRaster(prob_sprstr, file = "VS_AOI_Biased/prob_sprstr.tif")
 
 # to load a spatraster
 # prob_sprstr <- rast("VS_AOI_Biased/prob_sprstr.tif")
 
 plot(prob_sprstr)
+
 # plot the sampling probability raster
 # convert the spatraster into a raster layer
 prob_rstr <- raster(prob_sprstr)
@@ -268,31 +263,14 @@ occ_prob_1 <- cbind(coord_occ_1, occ_prob_1)
 
 # Retrieve points only with 100% of probability (within 1 km from roads)
 occ_bias_1 <- occ_prob_1[occ_prob_1$layer == 1, ]
-# 375 SAMPLES out of 5000
+# 348 SAMPLES out of 5000
 
-# Convert unbiased points to sf object
-unbias_pts <- st_as_sf(alp_occ_1$sample.points, coords = c("x", "y"), crs = 4326)
-
-# Convert biased points to sf object
-bias_pts <- st_as_sf(occ_bias_1, coords = c("x", "y"), crs = 4326)
+# Convert biased points to sf object to be used later for plotting against the unbiased subset samples
+occ_bias_1_sf <- st_as_sf(occ_bias_1, coords = c("x", "y"), crs = 4326)
 
 # save the biased points shapefile
-save(bias_pts, file = "VS_AOI_Biased/bias_pts.shp")
-# load("VS_AOI_Biased/bias_pts.shp")
-
-# plot both the unbiased and biased sampling points
-ggplot() +
-  geom_raster(data = prob_df, aes(x = x, y = y, fill = prob_rstr)) +
-  scale_fill_viridis_c() +
-  geom_sf(data = OSM_AOI$geometry, color = "black", size = 0.25) +
-  geom_sf(data = unbias_pts, aes(color = "Unbiased"), size = 1.2, shape = 16) +  # Unbiased points
-  geom_sf(data = bias_pts, aes(color = "Biased"), size = 1.2, shape = 16) +  # Biased points
-  scale_color_manual(values = c("Unbiased" = "green", "Biased" = "red"), name = "Sampling Points") +
-  theme_bw() +
-  theme_minimal() +
-  labs(title = "AOI: Biased and Unbiased Sampling Results",
-       fill = "Sampling Probability", x = 'Longitude', y = 'Latitude')
-# MESSY CHANGE THIS PLOT I DONT LIKE IT
+save(occ_bias_1_sf, file = "VS_AOI_Biased/occ_bias_1_sf.shp")
+# load("VS_AOI_Biased/occ_bias_1_sf.shp")
 
 dev.off()
 
@@ -303,4 +281,4 @@ dev.off()
   #...occurrences. The sampling probability values were extracted for each of the 200
   #...unbiased occurrences, filtered to samples only having 100% sampling probability
   #...resulting in the biased occurrences.
-  # 375 biased occurrences out of 5000 unbiased occurrences.
+  # 348 biased occurrences out of 5000 unbiased occurrences.
