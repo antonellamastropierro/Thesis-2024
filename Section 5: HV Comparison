@@ -12,29 +12,20 @@
 # LEGEND:
 # AOI = area of interest (European Alps mountain range)
 # bio = CHELSA environmental variables
-# alp = alpine climate locations
 # df = dataframe
-# pmtrs = parameters
-# vs = virtual species
-# pa = presence/absence
 # occ = occurrences
 # rstr = raster
 # std = standardized
+# preds = predictions
+# sf = shapefile
 ################################################################################
 # OBJECTIVE 1: Plot the Unbiased and Biased Results Together
-
-# Combine unbiased and biased data
-sims_df$sampletype <- "unbiased"
-sims_bias_df$sampletype <- "biased"
-
-# not used in anything
-combined_sims_df <- rbind(sims_df, sims_bias_df)
 
 # Filter any NAs
 mean_preds <- filter(mean_preds, !is.na(num_occ) & !is.na(hv_mean))
 mean_preds_bias <- filter(mean_preds_bias, !is.na(num_occ) & !is.na(hv_mean))
 
-# Plot the mean LOESS predications for unbiased and biased HVs with their individual simulation results
+# Plot the mean LOESS predictions for unbiased and biased HVs with their individual simulation results
 ggplot() +
   geom_smooth(data = sims_df, aes(x = num_occ, y = volumes, group = sim, color = "Unbiased"), 
               method = "loess", se = FALSE, size = 0.5, alpha = 0.5) +
@@ -68,13 +59,13 @@ max_results <- data.frame(
 )
 
 max_results
-# unbiased: num_occ = 232, volume = 175.40
-# biased: num_occ = 200, volume = 6189.62
+# unbiased: num_occ = 200, volume = 283.01
+# biased: num_occ = 175, volume = 9347.08
 
 #------------------------------------------------------------------------------
 # Create Boxplot Showing Central Tendency Differences between biased and unbiased
 
-# unbiased dataframe = bio_occ_1_df_sub
+# unbiased dataframe (subset) = bio_occ_1_df_sub
 # biased dataframe = bio_bias_1_df
 
 # Add source labels
@@ -92,30 +83,31 @@ long_data <- combined_data %>%
 ggplot(long_data, aes(x = variable, y = value, fill = source)) +
   geom_boxplot() +
   theme_minimal() +
-  labs(title = "Central Tendency Plot Comparing Ranges of Each Variable",
+  labs(title = "Central Tendency Plot: Unbiased vs. Biased (Standardized)",
        x = "Variables",
        y = "Values",
        fill = "Dataset") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+ # the boxplot shows the unbiased samples having more stability in terms of range
+  #...and variability throughout all the bio variables. The biased samples have
+  #...more variability and range
+
 #################################################################################
 # PLOT UNBIASED AND BIASED SAMPLES AGAINST SUITABILITY MAP
+
 # Convert dataframes to sf objects
 bio_occ_1_sf <- st_as_sf(bio_occ_1_df_xy_sub, coords = c("x", "y"), crs = 4326)
 bio_bias_1_sf <- st_as_sf(bio_bias_1_df_xy, coords = c("x", "y"), crs = 4326)
 
-
-suit_rstr <- raster(alp_pa_1$suitab.raster)
-
-# Convert raster to data frame
-suit_df <- as.data.frame(rasterToPoints(suit_rstr), xy = TRUE)
+# suitability dataframe = vs_suit_df
 
 # Rename columns for easier use
-colnames(suit_df) <- c("x", "y", "suitability")
+colnames(vs_suit_df) <- c("x", "y", "suitability")
 
 # Plot unbiased and biased samples
 ggplot() +
-  geom_raster(data = suit_df, aes(x = x, y = y, fill = suitability)) +
+  geom_raster(data = vs_suit_df, aes(x = x, y = y, fill = suitability)) +
   scale_fill_viridis_c() +
   geom_sf(data = OSM_AOI$geometry, color = "black", size = 0.25) +
   geom_sf(data = bio_occ_1_sf, aes(color = "Unbiased"), size = 1.2, shape = 16) +  # Unbiased points
@@ -125,6 +117,10 @@ ggplot() +
   theme_minimal() +
   labs(title = "AOI: Biased and Unbiased Sampling Results",
        fill = "Suitability", x = 'Longitude', y = 'Latitude')
+
+# the plot shows all of the unbiased samples tightly clustered together in the areas
+  #....of high suitability. The biased samples are dispersed throughout the AOI in areas
+  #...of low suitability.
 
 ################################################################################
 # CONCLUSION:
