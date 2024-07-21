@@ -24,6 +24,8 @@
 # occ = occurrences
 # rstr = raster
 # std = standardized
+# hv = hypervolume
+# sim = simulation
 ################################################################################
 # OBJECTIVE 1: Retrieve Biased Bio Variables for Analysis
 # a standardized bio variable rasterstack was already created in Section III
@@ -32,13 +34,14 @@
 # the bio variables have already been created into a dataframe in Section II
 
 # create a dataframe of the biased points
-occ_bias_1_df <- as.data.frame(bias_pts)
-bias_coord <- st_coordinates(bias_pts)
+occ_bias_1_df <- as.data.frame(occ_bias_1)
+bias_coord <- crds(occ_bias_1, df=T)
 occ_bias_1_df <- cbind(bias_coord, occ_bias_1_df)
-# rename the x,y columns to match with the biovariable coordinate columns
-occ_bias_1_df <- rename(occ_bias_1_df, c(x = X, y = Y))
 
-# make sure all decimal places are correct before merging
+glimpse(occ_bias_1_df)
+# 348 rows with their coordinates, real, observe, ID, layer
+
+# make sure all decimal places are correct and aligned before merging
 bio_AOI_df_std$x <- round(bio_AOI_df_std$x, 5)
 bio_AOI_df_std$y <- round(bio_AOI_df_std$y, 5)
 occ_bias_1_df$x <- round(occ_bias_1_df$x, 5)
@@ -48,19 +51,21 @@ occ_bias_1_df$y <- round(occ_bias_1_df$y, 5)
 bio_bias_1_df_xy <- merge(bio_AOI_df_std, occ_bias_1_df, by = c("x", "y"))
 
 glimpse(bio_bias_1_df_xy)
-# result is 375 observations from the biased sampling with their respective bio variables
+# result is 348 observations from the biased sampling with their respective bio variables
 
-# eliminate all the non-bio variable columns
+# eliminate all the non-bio variable columns (real, observed, ID, layer)
 bio_bias_1_df_xy <- bio_bias_1_df_xy[ , -c(10:14)]
 # keep one df with the coordinates for plotting
 
 # remove coordinates for HV calculation
 bio_bias_1_df <- bio_bias_1_df_xy[ , -c(1,2)]
 
-# save the bias sample dataframe
+# save the bias sample dataframes
+save(bio_bias_1_df_xy, file="VS_HV/bio_bias_1_df_xy")
 save(bio_bias_1_df, file="VS_HV/bio_bias_1_df")
 
-# result is dataframe containing the 375 biased samples and their bio variables
+glimpse(bio_bias_1_df)
+# result is dataframe containing the 348 biased samples and their bio variables
 ################################################################################
 # OBJECTIVE 3: Create Unbiased Sample HV and Observe Volume Change over Number of Samples
 # PART A: Run the biased HV calculations for 10 simulations
@@ -73,42 +78,31 @@ save(bio_bias_1_df, file="VS_HV/bio_bias_1_df")
 # create a new stop for the biased points
 stop_bias <- nrow(bio_bias_1_df)
 
-# store number of simulations
+# store number of simulations (same as unbiased HV)
 num_sim <- 10
 
-# list of the occurrences to be tested (start at 10, by 10, until 29)
+# list of the biased occurrences to be tested (start at 100, by 100, until 348)
 n_occ_bias_list <- c(seq(from = 100, to = stop_bias, by = 100), stop_bias)
 
 # List to store the simulations
 sim_bias_list <- list()
 
-# vector to store convergence information
-convg_bias_info <- vector("logical", num_sim)
-
 # Simulation Loop
 for (sim in 1:num_sim) {
   
-  list_output_bias_occ <- list()
+  output_occ_bias_list <- list()
   
   for (i in seq_along(n_occ_bias_list)) {
-    result_bias <- calc_accum(bio_bias_1_df, n_occ_bias_list[i])
-    nelly_bias <- result_bias$result
-    converged_bias <- result_bias$converged
+    output_bias_results <- calc_accum(bio_bias_1_df, n_occ_bias_list[i])
     
-    list_output_bias_occ[[i]] <- nelly_bias
+    output_occ_bias_list[[i]] <- output_bias_results[[1]]
     
   }
   
-  # Store convergence information for this simulation iteration
-  convg_bias_info[sim] <- converged_bias
-  
   # Add the occurrence list to the simulation list
-  sim_bias_list[[sim]] <- list_output_bias_occ
+  sim_bias_list[[sim]] <- output_occ_bias_list
 }
 
-
-# View the convergence information
-print(convg_bias_info)
 
 # Combine all simulations into one dataframe
 sims_bias_df <- do.call(rbind, lapply(seq_along(sim_bias_list), function(sim) {
@@ -131,7 +125,7 @@ save(sims_bias_df, file = "VS_HV/sims_bias_df")
 # Fits a LOESS (Locally Estimated Scatterplot Smoothing) model for each number
 # ...of occurrence to predict hv volume using the simulation data
 # LOESS model: Smooths out noise and variations to get a better understanding of relationship between HV volume and # occurrences
-# lapply: apply the function (n) to each unique number of occurrence (100, 200, 300, 375)
+# lapply: apply the function (n) to each unique number of occurrence (100, 200, 300, 348)
 loess_preds_bias <- lapply(unique(sims_bias_df$num_occ), function(n) {
   preds_bias <- sapply(sim_bias_list, function(list) {
     loess_fit_bias <- loess(volumes ~ num_occ, data = do.call(rbind, list))
