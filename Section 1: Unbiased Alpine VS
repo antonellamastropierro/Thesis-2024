@@ -28,6 +28,8 @@
 # alp = alpine climate locations
 # df = dataframe
 # pmtrs = parameters
+# rstr = raster
+# suit = environmental suitability
 # vs = virtual species
 # pa = presence/absence
 # occ = occurrences
@@ -103,7 +105,7 @@ alp_vs <- generateSpFromFun(raster.stack = bio_AOI,
 
 # create a plot showing the environmental suitability plot
 vs_suit_rstr <- raster(alp_vs$suitab.raster)
-vs_suit_df <- as.data.frame(rasterToPoints(vs_suit_rstr), stringsAsFactors = FALSE)
+vs_suit_df <- as.data.frame(rasterToPoints(vs_suit_rstr))
 
 # Plot with ggplot2
 ggplot() +
@@ -134,7 +136,10 @@ dev.off()
   #...virtual species that equates to the species' total realized niche
 
 # use converttoPA() function to convert the suitability plot into a binary presence/absence plot
-alp_pa_1 <- convertToPA(alp_vs, alpha = -0.05, beta = 'random', species.prevalence = 0.02, plot = F)
+alp_pa_1 <- convertToPA(alp_vs, alpha = -0.05, beta = 'random', species.prevalence = 0.03, plot = F)
+
+alp_pa_2 <- convertToPA(alp_vs, alpha = -0.05, beta = 'random', species.prevalence = 0.03, plot = F)
+alp_pa_3 <- convertToPA(alp_vs, alpha = -0.05, beta = 'random', species.prevalence = 0.03, plot = F)
 # beta = inflection point of curve
 # lower beta = wider distribution range (increase probability of finding suitable conditions)
 # higher beta = smaller distribution range (decrease probability of finding suitable conditions)
@@ -153,7 +158,7 @@ alp_pa_1 <- convertToPA(alp_vs, alpha = -0.05, beta = 'random', species.prevalen
 # view presence/absence details
 alp_pa_1
 # probabilistic method = logistic
-# beta = 0.30
+# beta = 0.29
 # species prevalence = 0.03
 
 # save presence/absence VS 1
@@ -167,10 +172,11 @@ plot(alp_pa_1$pa.raster)
 # for suitability: alp_pa$suitab.raster
 # for prob. of occurrence: alp_pa$probability.of.occurrence
 
+# for plotting
 alp_pa_1_rstr <- raster(alp_pa_1$pa.raster)
 alp_pa_1_df <- as.data.frame(rasterToPoints(alp_pa_1_rstr))
 
-# Plot with ggplot2
+# create a plot showing the presence absence points
 pa_plot <- ggplot(alp_pa_1_df, aes(x = x, y = y, fill = factor(lyr.1))) +
   geom_raster() +
   scale_fill_manual(name = "Presence/Absence",
@@ -181,18 +187,17 @@ pa_plot <- ggplot(alp_pa_1_df, aes(x = x, y = y, fill = factor(lyr.1))) +
        y = "Latitude") +
   theme_minimal()
 
-# plot
+# plot the P/A plot created
 pa_plot
 
 # to view the number of presences and absence number of cells
 freq(alp_pa_1$pa.raster)
-# Present (1) = 9837
-# Absent (0) = 320800
+# Present (1) = 9932
+# Absent (0) = 320705
 # this is indicative of a rare species with a narrow niche breadth
 
 # the presence/absence VS represents the realized niche of the VS, with respect
 # ...to abiotic factors only
-
 
 
 dev.off()
@@ -204,6 +209,12 @@ dev.off()
 # sample for 5000 occurrences (actual realized niche)
 alp_occ_1 <- sampleOccurrences(alp_pa_1, type = "presence only", n = 5000,
                                  correct.by.suitability = TRUE, plot = FALSE)
+# sample for 5000 occurrences (actual realized niche)
+# alp_occ_2 <- sampleOccurrences(alp_pa_2, type = "presence only", n = 5000,
+                            #   correct.by.suitability = TRUE, plot = FALSE)
+# sample for 5000 occurrences (actual realized niche)
+# alp_occ_3 <- sampleOccurrences(alp_pa_3, type = "presence only", n = 5000,
+                             #  correct.by.suitability = TRUE, plot = FALSE)
 # type = presence only samples
 # correct by suitability = samples collected are influenced by suitaibility
 
@@ -224,7 +235,7 @@ ggplot() +
   scale_color_manual(name = "Occurrences (5000)",
                      values = c("0" = "black", "1" = "red"),
                      labels = c("0" = "Absence", "1" = "Presence-Only Occurrence")) +
-  labs(title = "Alpine Virtual Species: 5000 Occurrences (Presence Only)",
+  labs(title = "Alpine Virtual Species 1: 5000 Occurrences (Presence Only)",
        x = "Longitude",
        y = "Latitude") +
   theme_minimal()
