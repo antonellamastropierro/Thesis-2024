@@ -5,7 +5,7 @@
 # OBJECTIVE 2: Identify Number of Samples Collected with Road Bias in Place
 
 ################################################################################
-# SECTION I: UNBIASED ALPINE VS  - RECAP
+# SECTION I: UNBIASED ALPINE VS RECAP
 # Created a virtual species based on fixed alpine climate parameters with suitability to an alpine climate
 # Created a presence/absence plot depicting the total realized niche of the species
 # Sampled for 5000 occurrences that represent the unbiased actual realized niche
