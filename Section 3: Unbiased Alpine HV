@@ -6,7 +6,7 @@
 # OBJECTIVE 2: Create Unbiased Sample HV and Observe Volume Change over Number of Samples for 10 Simulations
 
 ################################################################################
-# SECTION II RECAP: BIASED ALPINE VS
+# SECTION II: BIASED ALPINE VS RECAP
 # Created distance from roads and sampling probability rasters for the AOI
 # Extracted the sampling probability for the 5000 presence-only unbiased samples
 # Filtered out the unbiased sampling occurrences with 100% sampling probability (within 1km from road)
