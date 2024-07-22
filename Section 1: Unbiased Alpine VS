@@ -145,7 +145,7 @@ alp_pa_1 <- convertToPA(alp_vs, alpha = -0.05, beta = 'random', species.prevalen
   #... out of the total number of available places
 # alpha = -0.05 is set as a logistic-like curve
 # beta = is set to random since it goes hand-in-hand with species prevalence
-# species.prevalence = 0.05. The area within the AOI that is identified as alpine climate
+# species.prevalence = 0.03. The area within the AOI that is identified as alpine climate
   #...covers 10% of the AOI, so the species prevalence should be less than 10%.
   # For the sake of this project, since alpine climate areas are at high altitudes where
   #...there are not many road systems, increasing the species prevalence will increase
