@@ -4,7 +4,7 @@
 # OBJECTIVE 2: Create Biased Sample HV and Observe Volume Change over Number of Samples for 10 Simulations
 
 ################################################################################
-# SECTION III UNBIASED ALPINE HV  - RECAP
+# SECTION III: UNBIASED ALPINE HV RECAP
 # Standardized the Bio Variable Raster Layers for Consistency with HV Calculation
 # Created two HV Calculation Functions:
   # 1: HV Gaussian Calculation
