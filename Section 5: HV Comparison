@@ -122,6 +122,25 @@ ggplot() +
   #....of high suitability. The biased samples are dispersed throughout the AOI in areas
   #...of low suitability.
 
+#-------------------------------------------------------------------------------
+# Alpine Climate Locations and Road Map Plot
+
+# if I want to include elevation
+# AOI_elev <- raster('alp_shpfiles/wc2.1_30s_elev.tif')
+# AOI_elev <- crop(AOI_elev, AOI)
+# AOI_elev <- mask(AOI_elev, AOI)
+
+# plot(AOI_elev)
+
+ggplot() +
+  geom_sf(data = OSM_AOI$geometry, color = "black", size = 0.25) +
+  geom_sf(data = alp_AOI, color = "blue", size = 1) +
+  theme_bw() +
+  theme_minimal() +
+  labs(title = "Alpine Climate Locations and Road System",
+       x = 'Longitude', y = 'Latitude')
+
+
 ################################################################################
 # CONCLUSION:
   # Unbiased: The smaller HV suggests that the data points are more clustered or cover a more restricted range in the n-dimensional space.
