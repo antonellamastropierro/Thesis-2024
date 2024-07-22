@@ -206,12 +206,6 @@ dev.off()
 # sample for 5000 occurrences (actual realized niche)
 alp_occ_1 <- sampleOccurrences(alp_pa_1, type = "presence only", n = 5000,
                                  correct.by.suitability = TRUE, plot = FALSE)
-# sample for 5000 occurrences (actual realized niche)
-# alp_occ_2 <- sampleOccurrences(alp_pa_2, type = "presence only", n = 5000,
-                            #   correct.by.suitability = TRUE, plot = FALSE)
-# sample for 5000 occurrences (actual realized niche)
-# alp_occ_3 <- sampleOccurrences(alp_pa_3, type = "presence only", n = 5000,
-                             #  correct.by.suitability = TRUE, plot = FALSE)
 # type = presence only samples
 # correct by suitability = samples collected are influenced by suitaibility
 
