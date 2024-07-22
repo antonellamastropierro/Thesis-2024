@@ -137,9 +137,6 @@ dev.off()
 
 # use converttoPA() function to convert the suitability plot into a binary presence/absence plot
 alp_pa_1 <- convertToPA(alp_vs, alpha = -0.05, beta = 'random', species.prevalence = 0.03, plot = F)
-
-alp_pa_2 <- convertToPA(alp_vs, alpha = -0.05, beta = 'random', species.prevalence = 0.03, plot = F)
-alp_pa_3 <- convertToPA(alp_vs, alpha = -0.05, beta = 'random', species.prevalence = 0.03, plot = F)
 # beta = inflection point of curve
 # lower beta = wider distribution range (increase probability of finding suitable conditions)
 # higher beta = smaller distribution range (decrease probability of finding suitable conditions)
