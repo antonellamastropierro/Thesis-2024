@@ -69,11 +69,11 @@ max_results
 # biased dataframe = bio_bias_1_df
 
 # Add source labels
-bio_occ_1_df_sub$source <- 'Biased'
+bio_occ_1_df$source <- 'Biased'
 bio_bias_1_df$source <- 'Unbiased'
 
 # Combine the two dataframes
-combined_data <- rbind(bio_occ_1_df_sub, bio_bias_1_df)
+combined_data <- rbind(bio_occ_1_df, bio_bias_1_df)
 
 # Pivot the combined dataframe to long format
 long_data <- combined_data %>%
