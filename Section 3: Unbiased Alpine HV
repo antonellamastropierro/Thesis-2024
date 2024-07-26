@@ -100,7 +100,7 @@ calc_accum <- function(x, no) {
   # no = parameter that specifies how many random rows will be selected from x for each iteration
 
   # Initializes with a random row within the dataframe
-  fx <- x %>% sample_n(size = 1) 
+  fx <- x %>% sample_n(size = 1)
   volumes <- 0  # where to store the subset HV volumes
   num_occ <- 0  # store the subset number of occurrences
  
@@ -189,6 +189,9 @@ save(bio_occ_1_df, file = "VS_HV/bio_occ_1_df")
   # In order for better comparison of the unbiased and biased HVs, the unbiased and biased HV
   #...should be calculated from similar sampling efforts (similar amount of samples)
 
+# create stop for all 5000 occurrences
+stop_all <- 5000
+
 # Retrieve rows from the unbiased and biased sampling
 nrow(occ_bias_1_sf) # 348
 nrow(bio_occ_1_df) # 5000
@@ -222,13 +225,13 @@ save(bio_occ_1_df_sub, file = "VS_HV/bio_occ_1_df_sub")
 # store number of simulations
 num_sim <- 10
 
-# list of the occurrences to be tested (start at 100, by 100, until 418)
-n_occ_list <- c(seq(from = 100, to = stop, by = 100), stop)
-# Iteration 1 = 100 samples
-# Iteration 2 = 200 samples
-# Iteration 3 = 300 samples
-# Iteration 4 = 400 samples
-# Iteration 5 = 418 samples
+# list of the occurrences to be tested (start at 1000, by 1000, until 5,000)
+n_occ_list <- c(seq(from = 2000, to = stop_all, by = 2000), stop_all)
+# Iteration 1 = 1000 samples
+# Iteration 2 = 2000 samples
+# Iteration 3 = 3000 samples
+# Iteration 4 = 4000 samples
+# Iteration 5 = 5000 samples
 
 # List to store the simulations
 sim_list <- list()
@@ -239,7 +242,7 @@ for (sim in 1:num_sim) {
     output_occ_list <- list() # list to store the output occurrences
  
   for (i in seq_along(n_occ_list)) {
-    output_results <- calc_accum(bio_occ_1_df_sub, n_occ_list[i]) #calc_accum function used on unbiased samples for stated sequence
+    output_results <- calc_accum(bio_occ_1_df, n_occ_list[i]) #calc_accum function used on unbiased samples for stated sequence
   
     output_occ_list[[i]] <- output_results[[1]] # store results into output occurrence list (volume and number of occurrences)
     
@@ -263,7 +266,7 @@ sims_df <- do.call(rbind, lapply(seq_along(sim_list), function(sim) {
 # view the simulation dataframe
 glimpse(sims_df)
 # 3 columns: volumes, num_occ, simulations
-# 489 observations
+# 280 observations
 
 # save unbiased simulation dataframe
 save(sims_df, file = "VS_HV/sims_df")
