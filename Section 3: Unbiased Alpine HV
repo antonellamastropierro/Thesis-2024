@@ -189,21 +189,41 @@ save(bio_occ_1_df, file = "VS_HV/bio_occ_1_df")
   # In order for better comparison of the unbiased and biased HVs, the unbiased and biased HV
   #...should be calculated from similar sampling efforts (similar amount of samples)
 
-# create stop for all 5000 occurrences
-stop_all <- 5000
 
 # Retrieve rows from the unbiased and biased sampling
-nrow(occ_bias_1_sf) # 348
-nrow(bio_occ_1_df) # 5000
+nrow(bio_bias_1_df_xy) # 348
+nrow(bio_occ_1_df_xy) # 5000
 # create a stop that equates to the number of biased sampled collected with an additional 20%
   #...of the biased samples collected
-stop <-  ceiling(nrow(occ_bias_1_sf) + 0.2 * (nrow(occ_bias_1_sf)))
+stop <-  ceiling(nrow(bio_bias_1_df_xy) + 0.2 * (nrow(bio_bias_1_df_xy)))
 # result is a stopping point of 418 samples (amount of unbiased samples to be retrieved)
 
 # Retrieve a random subsample of 418 points from the unbiased points
-# first from unbiased dataframe with coordinates to be used for plotting
-bio_occ_1_df_xy_sub <- bio_occ_1_df_xy[sample(nrow(bio_occ_1_df), stop), ]
-# to be used for plotting later
+# this subsample must include the 348 biased samples as well plus an additional 20%
+  #...of unbiased samples
+# Number of additional unbiased samples needed
+num_add_samples <- stop - nrow(bio_bias_1_df_xy) # 70
+
+# Retrieve a random subsample of 70 unbiased samples from bio_occ_1_df
+# First, we need to remove the biased samples from bio_occ_1_df to ensure they are not included again
+set.seed(123) # Setting a seed for reproducibility
+bio_occ_1_df_xy_sub <- bio_occ_1_df_xy %>%
+  anti_join(bio_bias_1_df_xy, by = names(bio_occ_1_df_xy)[1:9]) %>% # Using column indices
+  sample_n(num_add_samples)
+  # 70 samples were collected
+
+# Combine the biased samples with the new random unbiased samples
+bio_occ_1_df_xy_sub <- bind_rows(bio_bias_1_df_xy, bio_occ_1_df_xy_sub)
+
+# Verify the final sample size
+nrow(bio_occ_1_df_xy_sub)
+# 418 samples
+
+# add a biased = yes/no column to the 5,000 occurrence dataframe
+bio_occ_1_df_all <- bio_occ_1_df_xy %>%
+  mutate(biased = ifelse(row_number() %in% row_number(semi_join(bio_occ_1_df_xy, bio_bias_1_df_xy)), "yes", "no"))
+
+write.csv(bio_occ_1_df_all, file = "VS_HV/bio_occ_1_df_all.csv")
 
 # remove coordinates from subset df for HV calculation
 bio_occ_1_df_sub <- bio_occ_1_df_xy_sub[ , -c(1,2)]
@@ -225,13 +245,13 @@ save(bio_occ_1_df_sub, file = "VS_HV/bio_occ_1_df_sub")
 # store number of simulations
 num_sim <- 10
 
-# list of the occurrences to be tested (start at 1000, by 1000, until 5,000)
-n_occ_list <- c(seq(from = 2000, to = stop_all, by = 2000), stop_all)
-# Iteration 1 = 1000 samples
-# Iteration 2 = 2000 samples
-# Iteration 3 = 3000 samples
-# Iteration 4 = 4000 samples
-# Iteration 5 = 5000 samples
+# list of the occurrences to be tested (start at 100, by 100, until 418)
+n_occ_list <- c(seq(from = 100, to = stop, by = 100), stop)
+# Iteration 1 = 100 samples
+# Iteration 2 = 200 samples
+# Iteration 3 = 300 samples
+# Iteration 4 = 400 samples
+# Iteration 5 = 418 samples
 
 # List to store the simulations
 sim_list <- list()
@@ -242,7 +262,7 @@ for (sim in 1:num_sim) {
     output_occ_list <- list() # list to store the output occurrences
  
   for (i in seq_along(n_occ_list)) {
-    output_results <- calc_accum(bio_occ_1_df, n_occ_list[i]) #calc_accum function used on unbiased samples for stated sequence
+    output_results <- calc_accum(bio_occ_1_df_sub, n_occ_list[i]) #calc_accum function used on unbiased samples for stated sequence
   
     output_occ_list[[i]] <- output_results[[1]] # store results into output occurrence list (volume and number of occurrences)
     
@@ -266,7 +286,7 @@ sims_df <- do.call(rbind, lapply(seq_along(sim_list), function(sim) {
 # view the simulation dataframe
 glimpse(sims_df)
 # 3 columns: volumes, num_occ, simulations
-# 280 observations
+# 488 observations
 
 # save unbiased simulation dataframe
 save(sims_df, file = "VS_HV/sims_df")
