@@ -234,9 +234,7 @@ prob_df <- as.data.frame(rasterToPoints(prob_rstr), xy = TRUE)
 # plot the sampling probability raster along with the roads
 ggplot() +
   geom_raster(data = prob_df, aes_string(x = "x", y = "y", fill = 'prob_rstr')) +
-  scale_fill_viridis_c(alpha = 1,
-                       begin = 0,
-                       end = 1) +
+  scale_fill_viridis_c() +
   geom_sf(data = OSM_AOI$geometry, color = "black", size = 0.5) +
   theme_bw() +
   theme_minimal() +
@@ -273,6 +271,35 @@ save(occ_bias_1_sf, file = "VS_AOI_Biased/occ_bias_1_sf.shp")
 # load("VS_AOI_Biased/occ_bias_1_sf.shp")
 
 dev.off()
+
+#-------------------------------------------------------------------------------
+# Plot the biased points and the unbiased points together on the suitability map
+
+# biased point dataframe with coord: bio_bias_1_df_xy
+# unbiased point dataframe with coord: bio_occ_1_df_sub_xy
+# suitability dataframe: vs_suit_df
+
+ggplot() +
+  geom_raster(data = vs_suit_df, aes(x = x, y = y, fill = suitability)) +  # Replace 'layer' with actual raster value column name
+  scale_fill_viridis_c() + 
+  geom_point(data = bio_occ_1_df_xy_sub, aes(x = x, y = y, color = "unbiased points"), alpha = 0.7, size = 2) +# Use appropriate scale for your data
+  geom_point(data = bio_bias_1_df_xy, aes(x = x, y = y, color = "biased points"), alpha = .7, size = 2) +
+  scale_color_manual(values = c("biased points" = "red", "unbiased points" = "green")) +
+  theme_minimal() +
+  labs(title = "Suitability Plot: Biased and Unbiased Points", x = "Longitude", y = "Latitude", color = "Point Type")
+
+#-------------------------------------------------------------------------------
+# Plot the biased points and the total occurrences together on the suitabliity map
+
+ggplot() +
+  geom_raster(data = vs_suit_df, aes(x = x, y = y, fill = suitability)) +  # Replace 'layer' with actual raster value column name
+  scale_fill_viridis_c() + 
+  geom_point(data = bio_occ_1_df_xy, aes(x = x, y = y, color = "total points"), alpha = 0.7, size = 2) +# Use appropriate scale for your data
+  geom_point(data = bio_bias_1_df_xy, aes(x = x, y = y, color = "biased points"), alpha = .7, size = 2) +
+  scale_color_manual(values = c("biased points" = "red", "total points" = "green")) +
+  theme_minimal() +
+  labs(title = "Suitability Plot: Biased and Total Points", x = "Longitude", y = "Latitude", color = "Point Type")
+
 
 ################################################################################
 # CONCLUSION: a distance raster and sampling probability raster have been created
