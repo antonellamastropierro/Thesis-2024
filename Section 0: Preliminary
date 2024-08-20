@@ -3,7 +3,8 @@
 # OBJECTIVE 1: Retrieve the AOI (European Alps) shapefile.
 # OBJECTIVE 2: Retrieve and import the environmental variables from CHELSA.
 # OBJECTIVE 3: Isolate Environmental Variables within Alpine Climate Locations in AOI.
-# OBJECTIVE 4: Eliminate Colinear Variables to Reduce Dimension Size
+# OBJECTIVE 4: Eliminate Colinear Variables to Reduce Dimension Size and Select Independent Variables
+# OBJECTIVE 5: Create Standardized Raster Layers for Hypervolume Calculations
 
 ################################################################################
 # LEGEND:
@@ -55,7 +56,7 @@ library(virtualspecies)
 # hypervolume analysis
 library(hypervolume)
 
-# package for extracting large datasets (i.e. countries)
+# package for extracting OSM of large datasets (i.e. countries)
 library(osmextract)
 
 # color palette creation
@@ -247,11 +248,11 @@ dev.off()
 
 # plot the two alpine climate shapefile with the AOI shapefile for confirmation
 ggplot() + 
-  geom_sf(data = alp_AOI, aes(fill = "Alpine Climate Locations"), color = 'aquamarine4', alpha = 0.5) +
+  geom_sf(data = alp_AOI, aes(fill = "Alpine Climate Zones"), color = 'aquamarine4', alpha = 0.5) +
   geom_sf(data = AOI, aes(fill = "European Alps Boundary"), color = 'black', fill = NA, alpha = 0.5) + 
   coord_sf(xlim = c(4.735802, 17.000550), ylim = c(43.135029, 48.364782)) +
-  scale_fill_manual(name = "Legend", values = c("Alpine Climate Locations" = "aquamarine4")) +
-  labs(title = "Alpine Climate Locations within AOI (European Alps)",
+  scale_fill_manual(name = "Legend", values = c("Alpine Climate Zones" = "aquamarine4")) +
+  labs(title = "Alpine Climate Zones within AOI (European Alps)",
        x = "Longitude",
        y = "Latitude") +
   theme_minimal()
@@ -290,11 +291,11 @@ ggplot() +
 dev.off()
 
 ################################################################################
-# OBJECTIVE 4: Eliminate Colinear Variables to Reduce Dimension Size
+# OBJECTIVE 4: Eliminate Colinear Variables to Reduce Dimension Size and Select Independent Variables
 # PURPOSE: To eliminate any unneeded variables by comparing the independent variables
 # ... and testing for mulitcollinearity in order to avoid redundancy and overfitting
 
-# the bio variable names have to first be changed because the - in their original
+# the bio variable names have to first be changed because the "-" in their original
 #...names is viewed as a mathematical expression and will cause an error in the
 #...colinearity test
 names(bio_AOI_alp) <- c("bio1", "bio2", "bio3", "bio4", "bio5", "bio6", "bio7", "bio8", 'bio9', 'bio10',
@@ -304,7 +305,7 @@ names(bio_AOI_alp)
 
 # Test the already isolated European alpine-specified variables
 # vifcor() function runs a correlation test and VIF test
-# variance inflation factor (VIF): measure of the degree of multicollinearity
+# variance inflation factor (VIF): measure of the degree of multicolinearity
 # ... of one regressor with the other regressors in a linear regression
 vifcor(bio_AOI_alp, th=0.7, keep = NULL,  method = 'pearson')
 # th = threshold (0.9 is default)
@@ -312,11 +313,11 @@ vifcor(bio_AOI_alp, th=0.7, keep = NULL,  method = 'pearson')
 # size = # of cells to be tested (5,000 is default)
 # method = method used to calculate pairwise correlation (pearson is default)
 
-# 12 variables from the 19 input variables have collinearity problem: 
+# 12 variables from the 19 input variables have colinearity problem: 
   
  #  bio17 bio5 bio10 bio11 bio19 bio16 bio6 bio13 bio7 bio14 bio2 bio18 
 
-# After excluding the collinear variables, the linear correlation coefficients ranges between: 
+# After excluding the colinear variables, the linear correlation coefficients ranges between: 
 #  min correlation ( bio15 ~ bio4 ):  0.0016044 
 # max correlation ( bio15 ~ bio8 ):  0.649129 
 
@@ -342,8 +343,7 @@ vifcor(bio_AOI_alp, th=0.7, keep = NULL,  method = 'pearson')
 
 # therefore, these are the 7 bio variables we want to use when creating the alpine VS
 
-# now that the variables that do not have a colinearity problem are found,
-# ... filter out/eliminate the unneeded variables
+# now that the independent variables are found, filter out/eliminate the unneeded variables
 bio_AOI_alp <- subset(bio_AOI_alp, c(1, 3, 4, 8, 9, 12, 15))
 
 # use the names () function to confirm the changes
@@ -378,7 +378,82 @@ names(bio_AOI) <- c("Annual Mean Temp", "Isothermality", "Temp Seasonality",
 # confirm that the names have changed
 names(bio_AOI)
 
+# save the bio_AOI spatraster
+writeRaster(bio_AOI, file = "bio/bio_AOI.tif")
+# to load the spatraster
+# bio_AOI <- rast("bio/bio_AOI.tif")
+
 ################################################################################
-# CONCLUSION: Now that that the bio variables have been reduced to only non-colinear
+# OBJECTIVE 4: Create Standardized Bio Raster Layers for Hypervolume Calculations
+# Purpose: the selected bio variables currently have different means, standard deviations,
+#...and methods of measurements (i.e. temp (degree C), precipitation(mm)).
+# Standardizing all the bio variables to have a mean=0 and SD=1 allows for consistency
+#...throughout all bio variable measurements for better comparison.
+# The bio variable raster layers should be standardized before bio variable extraction to eliminate
+#...continuously having to standardize them after extraction.
+
+# Standardization is completed through Z-score transformation so that:
+# mean = 0
+# SD = 1
+# Z-score transformation equation: Z = (x-u)/o
+# x = data point value
+# u = mean value
+# o = standard deviation
+
+# convert bio variable spatraster (bio_AOI) into a raster stack with 7 layers representing each
+#...bio variable
+bio_AOI_stk <- stack(bio_AOI)
+
+#confirm number of layers in bio variable raster stack
+nlayers(bio_AOI_stk)
+# 7 layers confirmed
+
+# empty list to store the standardized raster layers
+bio_AOI_stk_std <- list()
+
+# create a loop that inputs the z-score equation into each of the 7 bio variable rasters
+for (i in 1:nlayers(bio_AOI_stk)){
+  bio_AOI_stk_std[[i]] <- (bio_AOI_stk[[i]] - cellStats(bio_AOI_stk[[i]], 'mean')) / cellStats(bio_AOI_stk[[i]], 'sd') 
+}
+
+# convert the standardized list into a rasterstack
+bio_AOI_stk_std <- stack(bio_AOI_stk_std)
+
+# confirm layers are standardized
+cellStats(bio_AOI_stk_std, 'mean')
+cellStats(bio_AOI_stk_std, 'sd')
+# all layers have mean = 0 and SD = 1
+
+# rename names in standardized stack so aware that these are the standardized layers
+names(bio_AOI_stk_std) <- c("Annual Mean Temp Std", "Isothermality Std", "Temp Seasonality Std",
+                            "Mean Temp of Wettest Quarter Std", "Mean Temp of Driest Quarter Std",
+                            "Annual Precip Std", "Precip Seasonality Std")
+
+# confirm changes
+names(bio_AOI_stk_std)
+
+# save the standardized rasterstack
+writeRaster(bio_AOI_stk_std, file = "bio/bio_AOI_stk_std.tif")
+# to load it
+# bio_AOI_stk_std <- stack("bio/bio_AOI_stk_std.tif")
+
+# now there is a bio raster stack containing the 7 standardized bio variables
+
+# convert the standardized bio rasterstack to a dataframe to be used for Section 3 and 4
+# do not do bio_AOI_pts_std <- as.data.frame(bio_AOI_stk_std, xy=T), because results with NAs
+bio_AOI_pts_std <- rasterToPoints(bio_AOI_stk_std)
+bio_AOI_df_std <- as.data.frame(bio_AOI_pts_std)
+# dataframe contains all coordinates and their respective standardized bio variables in the AOI
+
+# save the standardized bio variable dataframe
+write.csv(bio_AOI_df_std, file = "bio/bio_AOI_df_std.csv")
+# to load the dataframe
+# read.csv(file = "bio/bio_AOI_df_std.csv")
+
+################################################################################
+# CONCLUSION: Now that that the bio variables have been reduced to only independent
   # ...variables and have been isolated both within the AOI as well as within the alpine
   #...climate locations within the AOI, an alpine VS can be created with the manipulated data
+# in addition, once unbiased and biased data points are retrieved, hypervolume calculations
+  #...in Sections 3 and 4 will be completed using the standardized environmental data for comparison across
+  #...the independent variables
