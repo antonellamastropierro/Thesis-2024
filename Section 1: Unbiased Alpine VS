@@ -136,7 +136,7 @@ dev.off()
   #...virtual species that equates to the species' total realized niche
 
 # use converttoPA() function to convert the suitability plot into a binary presence/absence plot
-alp_pa_1 <- convertToPA(alp_vs, alpha = -0.05, beta = 'random', species.prevalence = 0.03, plot = F)
+alp_pa <- convertToPA(alp_vs, alpha = -0.05, beta = 'random', species.prevalence = 0.03, plot = F)
 # beta = inflection point of curve
 # lower beta = wider distribution range (increase probability of finding suitable conditions)
 # higher beta = smaller distribution range (decrease probability of finding suitable conditions)
@@ -153,28 +153,28 @@ alp_pa_1 <- convertToPA(alp_vs, alpha = -0.05, beta = 'random', species.prevalen
   #...that some biased data based on roadside bias can be retrieved.
 
 # view presence/absence details
-alp_pa_1
+alp_pa
 # probabilistic method = logistic
 # beta = 0.29
 # species prevalence = 0.03
 
 # save presence/absence VS 1
-save(alp_pa_1, file = "VS_AOI_Unbiased/alp_pa_1")
+save(alp_pa, file = "VS_AOI_Unbiased/alp_pa")
 
 # load presence/absence VS 1
-load(file = "VS_AOI_Unbiased/alp_pa_1")
+# load(file = "VS_AOI_Unbiased/alp_pa")
 
 # plot the presence/absence raster
-plot(alp_pa_1$pa.raster)
+plot(alp_pa$pa.raster)
 # for suitability: alp_pa$suitab.raster
 # for prob. of occurrence: alp_pa$probability.of.occurrence
 
 # for plotting
-alp_pa_1_rstr <- raster(alp_pa_1$pa.raster)
-alp_pa_1_df <- as.data.frame(rasterToPoints(alp_pa_1_rstr))
+alp_pa_rstr <- raster(alp_pa$pa.raster)
+alp_pa_df <- as.data.frame(rasterToPoints(alp_pa_rstr))
 
 # create a plot showing the presence absence points
-pa_plot <- ggplot(alp_pa_1_df, aes(x = x, y = y, fill = factor(lyr.1))) +
+pa_plot <- ggplot(alp_pa_df, aes(x = x, y = y, fill = factor(lyr.1))) +
   geom_raster() +
   scale_fill_manual(name = "Presence/Absence",
                     values = c("0" = "black", "1" = "yellow"),
@@ -188,14 +188,13 @@ pa_plot <- ggplot(alp_pa_1_df, aes(x = x, y = y, fill = factor(lyr.1))) +
 pa_plot
 
 # to view the number of presences and absence number of cells
-freq(alp_pa_1$pa.raster)
+freq(alp_pa$pa.raster)
 # Present (1) = 9932
 # Absent (0) = 320705
 # this is indicative of a rare species with a narrow niche breadth
 
 # the presence/absence VS represents the realized niche of the VS, with respect
-# ...to abiotic factors only
-
+# ...to climatic factors only
 
 dev.off()
 
@@ -204,29 +203,32 @@ dev.off()
 # PURPOSE: The initial sampling batch will be used for HV analysis
 
 # sample for 5000 occurrences (actual realized niche)
-alp_occ_1 <- sampleOccurrences(alp_pa_1, type = "presence only", n = 5000,
+alp_occ <- sampleOccurrences(alp_pa, type = "presence only", n = 5000,
                                  correct.by.suitability = TRUE, plot = FALSE)
 # type = presence only samples
-# correct by suitability = samples collected are influenced by suitaibility
+# correct by suitability = samples collected are influenced by suitability
 
 # save the 5000 samples
-save(alp_occ_1, file = "VS_AOI_Unbiased/alp_occ_1")
-#load(file = "VS_AOI_Unbiased/alp_occ_1")
+save(alp_occ, file = "VS_AOI_Unbiased/alp_occ")
+# load(file = "VS_AOI_Unbiased/alp_occ")
 
-# convert to dataframe for plotting
-alp_occ_1_df <- alp_occ_1$sample.points
+# convert total occurrence points into dataframe for plotting and use in Section IV
+alp_occ_total_df <- alp_occ$sample.points
+
+#save the total occurrence point df
+write.csv(alp_occ_total_df, file = 'VS_AOI_Unbiased/alp_occ_total_df.csv')
 
 # plot against the PA for visualization
 ggplot() +
-  geom_raster(data = alp_pa_1_df, aes(x = x, y = y, fill = factor(lyr.1)), alpha = 0.7) +
-  geom_point(data = alp_occ_1_df, aes(x = x, y = y, color = factor(Observed)), size = 0.7) +
+  geom_raster(data = alp_pa_df, aes(x = x, y = y, fill = factor(lyr.1)), alpha = 0.7) +
+  geom_point(data = alp_occ_total_df, aes(x = x, y = y, color = factor(Observed)), size = 0.7) +
   scale_fill_manual(name = "Presence/Absence",
                     values = c("0" = "black", "1" = "yellow"),
                     labels = c("0" = "Absence", "1" = "Presence")) +
   scale_color_manual(name = "Occurrences (5000)",
                      values = c("0" = "black", "1" = "red"),
                      labels = c("0" = "Absence", "1" = "Presence-Only Occurrence")) +
-  labs(title = "Alpine Virtual Species 1: 5000 Occurrences (Presence Only)",
+  labs(title = "Alpine Virtual Species: 5000 Occurrences (Presence Only)",
        x = "Longitude",
        y = "Latitude") +
   theme_minimal()
@@ -239,5 +241,5 @@ dev.off()
   #...conditions.
   # a presence/absence plot was created showing the total realized niche (presence points)
   #...of the alpine species.
-  # 200 presence-only samples were collected from the P/A plot created. The sampled occurrences
+  # 5000 presence-only samples were collected from the P/A plot created. The sampled occurrences
   #...are unbiased and represent a subset of the total realized niche (actual realized niche)
