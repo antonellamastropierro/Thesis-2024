@@ -1,16 +1,25 @@
-# SECTION IV: BIASED ALPINE HV
+# SECTION III: BIASED ALPINE HV
 
-# OBJECTIVE 1: Extract Biased Sampling Bio Variables for Analysis
-# OBJECTIVE 2: Create Biased Sample HV and Observe Volume Change over Number of Samples for 10 Simulations
+# PRELIMINARY 1: Create Hypervolume Functions
+# PRELIMINARY 2: Extract Total Occurrence Sampling Bio Variables and Calculate Total Occurrence HV Size
+# OBJECTIVE 1: Extract Biased Sampling Bio Variables for Analysis for Each Scenario
+# OBJECTIVE 2: Create Biased Sample HV and Observe HV Size Change over Number of Samples for 10 Simulations
 
 ################################################################################
-# SECTION III: UNBIASED ALPINE HV RECAP
-# Standardized the Bio Variable Raster Layers for Consistency with HV Calculation
-# Created two HV Calculation Functions:
-  # 1: HV Gaussian Calculation
-  # 2: HV Accumulation Calculation and Convergence Criteria Check
-# Extracted Unbiased Sampling Bio Variables
-# Created Unbiased Sample HV and Observe Volume Change over Number of Samples for 10 Simulations
+# BIASED SCENARIOS:
+# SCENARIO 1 = ROADSIDE BIASED POINTS
+  # 348 Roadside Biased Samples
+# SCENARIO 2 = ROADSIDE BIASED POINTS (SAME AS SCENARIO 1)
+  # 348 Roadside Biased Samples
+# SCENARIO 3 = PSEUDO BIASED POINTS (QUALITY COMPONENT REMOVED)
+  # 348 Randomly Selected Pseudo Biased Samples
+
+################################################################################
+# SECTION II: BIASED ALPINE VS RECAP
+# Created distance from roads and sampling probability rasters for the AOI
+# Extracted the sampling probability for the 5000 presence-only samples
+# Filtered out the unbiased sampling occurrences with 100% sampling probability (within 1km from road)
+# Retrieved Roadside Biased Sampling Points (348 biased points out of 5000 unbiased points)
 
 ################################################################################
 # LEGEND:
@@ -27,62 +36,189 @@
 # hv = hypervolume
 # sim = simulation
 ################################################################################
-# OBJECTIVE 1: Retrieve Biased Bio Variables for Analysis
-# a standardized bio variable rasterstack was already created in Section III
+# PRELIMINARY 1: Create Hypervolume Functions
+# create the following functions:
+# 1. calculate the hypervolume (Gaussian KDE)
+# 2. calculate the hypervolume accumulation of a subset of data and check for convergence based on defined criteria
 
-# first merge bio variables with sample locations
+# Function 1: HV calculation function (df = dataframe)
+calc_hv <- function(df) {
+  occ_hv <- hypervolume_gaussian(df) # function calculates hv using kernel density estimation
+  return(occ_hv@Volume) # returns the volume component of the hypervolume
+}
+
+# Function 2: Calculation of the hypervolume accumulation of a subset of the data
+calc_accum <- function(x, no) {
+  # x = dataframe (unbiased/biased points)
+  # no = parameter that specifies how many random rows will be selected from x for each iteration
+  
+  # Initializes with a random row within the dataframe
+  fx <- x %>% sample_n(size = 1)
+  volumes <- 0  # where to store the subset HV volumes
+  num_occ <- 0  # store the subset number of occurrences
+  
+  
+  for (i in 1:1000) {
+    
+    fx <- x %>% # Starts with a random row in the dataset (x)
+      sample_n(size = no) %>% # Choose 'no' (parameter) random values
+      bind_rows(fx) %>% # binds the selected rows to 'fx'
+      distinct() # makes sure the values are all unique (have not been selected before)
+    
+    # Calculate the subset hypervolume (calc_hv function has already been created)
+    hv <- calc_hv(fx)
+    
+    # Save the hypervolume volume and number of occurrences
+    volumes <- c(volumes, hv)
+    num_occ <- c(num_occ, nrow(fx))
+    
+    
+    # Stop when the subset has the same number of occurrences as the original set
+    if (nrow(fx) == nrow(x)) {
+      break
+    }
+  }
+  result <- bind_cols(volumes = volumes, num_occ = num_occ)   
+  return(list(result=result)) 
+}
+# the result is a list containing the volumes and number of occurrences for each iteration
+
+################################################################################
+# PRELIMINARY 2: Extract Total Occurrence Sampling Bio Variables and Calculate Total Occurrence HV Size
+# Purpose: The isolated bio variables of the actual realized niche and 5000 samples
+#... are needed for HV creation and analysis of both the biased and unbiased samples
+
+# total occurrence dataframe was created in SECTION I (alp_occ_total_df)
+# remove the real and observed columns from the unbiased sample occurrence dataframe created in Section 1
+alp_occ_total_df <- alp_occ_total_df[ , -c(3,4)]
+
+# the bio variable and 5000 sample occurrence dataframes can be merged by their coordinates
+# before merging the two dataframes by coordinates confirm the coordinate decimal places are the same
+# round to the same decimal places so you get the bio values for all 5000 samples
+bio_AOI_df_std$x <- round(bio_AOI_df_std$x, 5)
+bio_AOI_df_std$y <- round(bio_AOI_df_std$y, 5)
+alp_occ_total_df$x <- round(alp_occ_total_df$x, 5)
+alp_occ_total_df$y <- round(alp_occ_total_df$y, 5)
+
+# merge the 5000 sampled occurrences with the bio variables by their coordinates
+# now that the coords are aligned, merge dataframes together by coords (x,y)
+bio_occ_total_df_xy <- merge(bio_AOI_df_std, alp_occ_total_df, by = c("x", "y"))
+# keep one df with coordinates for plotting
+
+glimpse(bio_occ_total_df_xy)
+# dataframe contains 5000 observations (sample points) with their respective bio variable values and coordinates
+
+# now that the dataframes are merged, the coordinate columns can be eliminated
+bio_occ_total_df <- bio_occ_total_df_xy[ , c(-1,-2)]
+
+# confirm remaining columns are all bio variables
+glimpse(bio_occ_total_df)
+# rows = 5000 (occurrence samples)
+# columns = 7 (bio variables)
+
+# save the total bio variable dataframe containing 5000 occurrences
+write.csv(bio_occ_total_df_xy, file = "VS_HV/bio_occ_total_df_xy.csv")
+write.csv(bio_occ_total_df, file = "VS_HV/bio_occ_total_df.csv")
+
+# a dataframe containing the 5000 occurrences and bio variables has been created
+
+# Calculate HV Size of Total Occurrences (Actual Realized Niche HV Size)
+# to be used for comparison against biased and unbiased samples
+total_hv <- hypervolume_gaussian(bio_occ_total_df)
+
+# retrieve total HV size
+total_hv@Volume
+# total HV size = 122.8295
+# this represents the actual realized niche breadth
+
+################################################################################
+# OBJECTIVE 1: Retrieve Biased Bio Variables for Analysis
+  # PART A: Scenario 1 and 2 Biased Sample Bio Extraction
+  # PART B: Scenario 3 Biased Sample Bio Extraction
+# a standardized bio variable rasterstack was already created in the Preliminary Section
+
+#-------------------------------------------------------------------------------
+# PART A: Scenario 1 and 2 Biased Sample Bio Extraction
+# BIASED SAMPLES = 348 ROADSIDE BIASED SAMPLES
+
+# first merge bio variables with the biased sample locations
 # the bio variables have already been created into a dataframe in Section II
 
 # create a dataframe of the biased points
-occ_bias_1_df <- as.data.frame(occ_bias_1)
-bias_coord <- crds(occ_bias_1, df=T)
-occ_bias_1_df <- cbind(bias_coord, occ_bias_1_df)
+occ_bias_df <- as.data.frame(occ_bias)
+bias_coord <- crds(occ_bias, df=T)
+occ_bias_df <- cbind(bias_coord, occ_bias_df)
 
-glimpse(occ_bias_1_df)
-# 348 rows with their coordinates, real, observe, ID, layer
+glimpse(occ_bias_df)
+# 348 rows with their coordinates, real, observed, ID, layer
 
 # make sure all decimal places are correct and aligned before merging
 bio_AOI_df_std$x <- round(bio_AOI_df_std$x, 5)
 bio_AOI_df_std$y <- round(bio_AOI_df_std$y, 5)
-occ_bias_1_df$x <- round(occ_bias_1_df$x, 5)
-occ_bias_1_df$y <- round(occ_bias_1_df$y, 5)
+occ_bias_df$x <- round(occ_bias_df$x, 5)
+occ_bias_df$y <- round(occ_bias_df$y, 5)
 
 # merge the points and the bio variables together
-bio_bias_1_df_xy <- merge(bio_AOI_df_std, occ_bias_1_df, by = c("x", "y"))
+bio_bias_df_xy <- merge(bio_AOI_df_std, occ_bias_df, by = c("x", "y"))
 
-glimpse(bio_bias_1_df_xy)
+glimpse(bio_bias_df_xy)
 # result is 348 observations from the biased sampling with their respective bio variables
 
 # eliminate all the non-bio variable columns (real, observed, ID, layer)
-bio_bias_1_df_xy <- bio_bias_1_df_xy[ , -c(10:14)]
+bio_bias_df_xy <- bio_bias_df_xy[ , -c(10:14)]
 # keep one df with the coordinates for plotting
 
 # remove coordinates for HV calculation
-bio_bias_1_df <- bio_bias_1_df_xy[ , -c(1,2)]
+bio_bias_df <- bio_bias_df_xy[ , -c(1,2)]
 
 # save the bias sample dataframes
-save(bio_bias_1_df_xy, file="VS_HV/bio_bias_1_df_xy")
-save(bio_bias_1_df, file="VS_HV/bio_bias_1_df")
+write.csv(bio_bias_df_xy, file="VS_HV/bio_bias_df_xy.csv")
+write.csv(bio_bias_df, file="VS_HV/bio_bias_df.csv")
 
-glimpse(bio_bias_1_df)
+glimpse(bio_bias_df)
 # result is dataframe containing the 348 biased samples and their bio variables
+
+#-------------------------------------------------------------------------------
+# PART B: Scenario 3 Biased Sample Bio Extraction
+# BIASED SAMPLES = 348 RANDOMLY SELECTION SAMPLES (PSEUDO BIASED)
+
+# Pull 348 random samples from the total occurrence dataframe
+sample_psbias_indices <- sample(nrow(bio_occ_total_df_xy), 348)
+bio_psbias_df_xy <- bio_occ_total_df_xy[sample_psbias_indices, ]
+# save one df with coordinates
+
+glimpse(bio_psbias_df_xy)
+
+# remove x,y columns from the dataframe for HV calculation
+bio_psbias_df <- bio_psbias_df_xy[ , -c(1,2)]
+
+# save the pseudo bias dataframes
+write.csv(bio_psbias_df_xy, file="VS_HV/bio_psbias_df_xy.csv")
+write.csv(bio_psbias_df, file="VS_HV/bio_psbias_df.csv")
+
 ################################################################################
-# OBJECTIVE 3: Create Unbiased Sample HV and Observe Volume Change over Number of Samples
-# PART A: Run the biased HV calculations for 10 simulations
-# PART B: Plot the biased HV volume over number of samples
+# OBJECTIVE 2: Create Biased Sample HV and Observe Volume Change over Number of Samples
+# PART A: Run the biased HV calculations for 10 simulations for each scenario
+# PART B: Plot the biased HV volume over number of samples for each scenario
 
 #------------------------------------------------------------------------------
-# PART A: Run the biased HV calculations for 10 simulations
-# the two functions needed were already created in Section III
+# PART A: Run the biased HV calculations for 10 simulations for each scenario
 
-# create a new stop for the biased points
-stop_bias <- nrow(bio_bias_1_df)
+# create a stop for the biased points
+stop_bias <- nrow(bio_bias_df)
 
 # store number of simulations (same as unbiased HV)
 num_sim <- 10
 
 # list of the biased occurrences to be tested (start at 100, by 100, until 348)
 n_occ_bias_list <- c(seq(from = 100, to = stop_bias, by = 100), stop_bias)
+# Iteration 1 = 100 samples
+# Iteration 2 = 200 samples
+# Iteration 3 = 300 samples
+# Iteration 4 = 348 samples
+
+#_______________________________________________________________________________
+## SCENARIOS 1 AND 2 ##
 
 # List to store the simulations
 sim_bias_list <- list()
@@ -93,7 +229,7 @@ for (sim in 1:num_sim) {
   output_occ_bias_list <- list()
   
   for (i in seq_along(n_occ_bias_list)) {
-    output_bias_results <- calc_accum(bio_bias_1_df, n_occ_bias_list[i])
+    output_bias_results <- calc_accum(bio_bias_df, n_occ_bias_list[i])
     
     output_occ_bias_list[[i]] <- output_bias_results[[1]]
     
@@ -116,7 +252,45 @@ sims_bias_df <- do.call(rbind, lapply(seq_along(sim_bias_list), function(sim) {
 sims_bias_df
 
 # save unbiased simsdataframe
-save(sims_bias_df, file = "VS_HV/sims_bias_df")
+write.csv(sims_bias_df, file = "VS_HV/sims_bias_df.csv")
+
+#_______________________________________________________________________________
+## SCENARIO 3 ##
+# the number of samples is the same as Scenarios 1 and 2
+
+# List to store the simulations
+sim_psbias_list <- list()
+
+# Simulation Loop
+for (sim in 1:num_sim) {
+  
+  output_occ_psbias_list <- list()
+  
+  for (i in seq_along(n_occ_bias_list)) { # the sequence is the same as scenarios 1 and 2
+    output_psbias_results <- calc_accum(bio_psbias_df, n_occ_bias_list[i])
+    
+    output_occ_psbias_list[[i]] <- output_psbias_results[[1]]
+    
+  }
+  
+  # Add the occurrence list to the simulation list
+  sim_psbias_list[[sim]] <- output_occ_psbias_list
+}
+
+
+# Combine all simulations into one dataframe
+sims_psbias_df <- do.call(rbind, lapply(seq_along(sim_psbias_list), function(sim) {
+  do.call(rbind, lapply(sim_psbias_list[[sim]], function(df) {
+    df$sim <- sim
+    df
+  }))
+}))
+
+# view resulting dataframe
+sims_psbias_df
+
+# save unbiased simsdataframe
+write.csv(sims_psbias_df, file = "VS_HV/sims_psbias_df.csv")
 
 #-------------------------------------------------------------------------------
 # PART B: Plot the average biased HV volume over number of samples from the 10 Simulations
@@ -126,6 +300,8 @@ save(sims_bias_df, file = "VS_HV/sims_bias_df")
 # ...of occurrence to predict hv volume using the simulation data
 # LOESS model: Smooths out noise and variations to get a better understanding of relationship between HV volume and # occurrences
 # lapply: apply the function (n) to each unique number of occurrence (100, 200, 300, 348)
+
+## SCENARIOS 1 AND 2 ##
 loess_preds_bias <- lapply(unique(sims_bias_df$num_occ), function(n) {
   preds_bias <- sapply(sim_bias_list, function(list) {
     loess_fit_bias <- loess(volumes ~ num_occ, data = do.call(rbind, list))
@@ -142,6 +318,30 @@ ggplot() +
   geom_smooth(data = sims_bias_df, aes(x = num_occ, y = volumes, group = sim), 
               method = "loess", se = FALSE, color = "grey", size = 0.5, alpha = 0.5) +
   geom_line(data = mean_preds_bias, aes(x = num_occ, y = hv_mean), 
+            color = "turquoise4", size = 1.2) +
+  labs(title = "Hypervolume Mean: Biased (10 Simulations)",
+       x = "Number of Occurrences",
+       y = "Hypervolume Volume") +
+  theme_minimal()
+
+#_______________________________________________________________________________
+## SCENARIO 3 ##
+loess_preds_psbias <- lapply(unique(sims_psbias_df$num_occ), function(n) {
+  preds_psbias <- sapply(sim_psbias_list, function(list) {
+    loess_fit_psbias <- loess(volumes ~ num_occ, data = do.call(rbind, list))
+    predict(loess_fit_psbias, newdata = data.frame(num_occ = n))
+  })
+  data.frame(num_occ = n, hv_mean = mean(preds_psbias, na.rm = TRUE))
+})
+
+# combine all mean predictions of each simulation into a dataframe (already LOESS fitted)
+mean_preds_psbias <- do.call(rbind, loess_preds_psbias)
+
+# # Plot the LOESS model for the 10 individual simulations along with the mean LOESS predictions
+ggplot() +
+  geom_smooth(data = sims_psbias_df, aes(x = num_occ, y = volumes, group = sim), 
+              method = "loess", se = FALSE, color = "grey", size = 0.5, alpha = 0.5) +
+  geom_line(data = mean_preds_psbias, aes(x = num_occ, y = hv_mean), 
             color = "turquoise4", size = 1.2) +
   labs(title = "Hypervolume Mean: Biased (10 Simulations)",
        x = "Number of Occurrences",
