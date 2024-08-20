@@ -1,16 +1,21 @@
-# SECTION III: UNBIASED ALPINE HV
+# SECTION IV: UNBIASED ALPINE HV
 
-# PRELIMINARY 1: Standardize Bio Variable Raster Layers
-# PRELIMINARY 2: Create Hypervolume Functions
-# OBJECTIVE 1: Extract Unbiased Sampling Bio Variables for Analysis
-# OBJECTIVE 2: Create Unbiased Sample HV and Observe Volume Change over Number of Samples for 10 Simulations
+# OBJECTIVE 1: Extract Unbiased Sampling Bio Variables for Analysis for Each Scenario
+# OBJECTIVE 2: Create Unbiased Sample HV and Observe HV Size Change over Number of Samples for 10 Simulations
 
 ################################################################################
-# SECTION II: BIASED ALPINE VS RECAP
-# Created distance from roads and sampling probability rasters for the AOI
-# Extracted the sampling probability for the 5000 presence-only unbiased samples
-# Filtered out the unbiased sampling occurrences with 100% sampling probability (within 1km from road)
-# Retrieved Biased Sampling Points (375 biased points out of 5000 unbiased points)
+# UNBIASED SCENARIOS:
+  # SCENARIO 1 = COMPLETELY UNBIASED POINTS
+    # 418 Randomly Selected Unbiased Samples
+  # SCENARIO 2 = REALISTIC UNBIASED POINTS
+    # 348 Roadside Biased Samples + 20% Additional Unbiased Samples
+  # SCENARIO 3 = REALISTIC UNBIASED POINTS (QUALITY COMPONENT REMOVED)
+    # 348 Pseudo Biased Samples + 20% Additional Unbiased Samples
+
+################################################################################
+# SECTION III: BIASED ALPINE HV RECAP
+# Extracted biased sampling bio variables for each scenario
+# Created biased HV and observed volume change over number of samples for 10 simulations
 
 ################################################################################
 # LEGEND:
@@ -28,221 +33,117 @@
 # hv = hypervolume
 # sim = simulations
 ################################################################################
-# PRELIMINARY 1: Standardize Bio Variable Raster Layers
-# Purpose: the selected bio variables currently have different means, standard deviations,
-  #...and methods of measurements (i.e. temp (degree C), precipitation(mm)).
-  # Standardizing all the bio variables to have a mean=0 and SD=1 allows for consistency
-  #...throughout all bio variable measurements for better comparison.
-  # The bio variable raster layers should be standardized before bio variable extraction to eliminate
-  #...continuously having to standardize them after extraction.
+# OBJECTIVE 1: Extract Unbiased Sampling Bio Variables for Analysis for Each Scenario
+      # PART A: Scenario 1 Unbiased Sample Bio Extraction
+      # PART B: Scenario 2 Unbiased Sample Bio Extraction
+      # PART C: Scenario 3 Unbiased Sample Bio Extraction
 
-# Standardization is completed through Z-score transformation so that:
-  # mean = 0
-  # SD = 1
-# Z-score transformation equation: Z = (x-u)/o
-  # x = data point value
-  # u = mean value
-  # o = standard deviation
-
-# convert bio variable spatraster (bio_AOI) into a raster stack with 7 layers representing each
-  #...bio variable
-bio_AOI_stk <- stack(bio_AOI)
-
-#confirm number of layers in bio variable raster stack
-nlayers(bio_AOI_stk)
-# 7 layers confirmed
-
-# empty list to store the standardized raster layers
-bio_AOI_stk_std <- list()
-
-# create a loop that inputs the z-score equation into each of the 7 bio variable rasters
-for (i in 1:nlayers(bio_AOI_stk)){
-  bio_AOI_stk_std[[i]] <- (bio_AOI_stk[[i]] - cellStats(bio_AOI_stk[[i]], 'mean')) / cellStats(bio_AOI_stk[[i]], 'sd') 
-  }
-
-# convert the standardized list into a rasterstack
-bio_AOI_stk_std <- stack(bio_AOI_stk_std)
-
-# confirm layers are standardized
-cellStats(bio_AOI_stk_std, 'mean')
-cellStats(bio_AOI_stk_std, 'sd')
-# all layers have mean = 0 and SD = 1
-
-# rename names in standardized stack so aware that these are the standardized layers
-names(bio_AOI_stk_std) <- c("Annual Mean Temp Std", "Isothermality Std", "Temp Seasonality Std",
-                            "Mean Temp of Wettest Quarter Std", "Mean Temp of Driest Quarter Std",
-                            "Annual Precip Std", "Precip Seasonality Std")
-
-# confirm changes
-names(bio_AOI_stk_std)
-
-# save the standardized rasterstack
-writeRaster(bio_AOI_stk_std, file = "VS_HV/bio_AOI_stk_std.tif")
-# to load it
-# bio_AOI_stk_std <- stack("VS_HV/bio_AOI_stk_std.tif")
-
-# now there is a bio raster stack containing the 7 standardized bio variables
-#-------------------------------------------------------------------------------
-# PRELIMINARY 2: Create Hypervolume Functions
-# create the following functions:
-  # 1. calculate the hypervolume
-  # 2. calculate the hypervolume accumulation of a subset of data and check for convergence based on defined criteria
-
-# Function 1: HV calculation function (df = dataframe)
-calc_hv <- function(df) {
-  occ_hv <- hypervolume_gaussian(df) # function calculates hv using kernel density estimation
-  return(occ_hv@Volume) # returns the volume component of the hypervolume
-}
-
-# Function 2: Calculation of the hypervolume accumulation of a subset of the data
-calc_accum <- function(x, no) {
-  # x = dataframe (unbiased/biased points)
-  # no = parameter that specifies how many random rows will be selected from x for each iteration
-
-  # Initializes with a random row within the dataframe
-  fx <- x %>% sample_n(size = 1)
-  volumes <- 0  # where to store the subset HV volumes
-  num_occ <- 0  # store the subset number of occurrences
- 
-  
-  for (i in 1:1000) {
-    
-    fx <- x %>% # Starts with a random row in the dataset (x)
-      sample_n(size = no) %>% # Choose 'no' (parameter) random values
-      bind_rows(fx) %>% # binds the selected rows to 'fx'
-      distinct() # makes sure the values are all unique (have not been selected before)
-    
-    # Calculate the subset hypervolume (calc_hv function has already been created)
-    hv <- calc_hv(fx)
-    
-    # Save the hypervolume volume and number of occurrences
-    volumes <- c(volumes, hv)
-    num_occ <- c(num_occ, nrow(fx))
-    
-   
-    # Stop when the subset has the same number of occurrences as the original set
-    if (nrow(fx) == nrow(x)) {
-      break
-    }
-  }
-  result <- bind_cols(volumes = volumes, num_occ = num_occ)   
-  return(list(result=result)) 
-}
-# the result is a list containing the volumes and number of occurrences for each iteration
-################################################################################
-# OBJECTIVE 1: Extract Unbiased Sampling Bio Variables for Analysis
-# Purpose: The isolated bio variables of the actual realized niche and 5000 samples
-  #... are needed for HV creation and analysis
-# Realized Niche = Presence Values from the Presence-Absence Plot (alp_pa_1)
-
-# convert the standardized bio variables raster stack into a dataframe with their coordinates
-# do not do bio_AOI_pts_std <- as.data.frame(bio_AOI_stk_std, xy=T), because results with NAs
-bio_AOI_pts_std <- rasterToPoints(bio_AOI_stk_std)
-bio_AOI_df_std <- as.data.frame(bio_AOI_pts_std)
-# dataframe contains all coordinates and their respective standardized bio variables in the AOI
-
-# save the standardized bio variable dataframe
-save(bio_AOI_df_std, file = "VS_HV/bio_AOI_df_std")
-
-# remove the real and observed columns from the unbiased sample occurrence dataframe created in Section 1
-alp_occ_1_df <- alp_occ_1_df[ , -c(3,4)]
-
-# the bio variable and 5000 sample occurrence dataframes can be merged by their coordinates
-# before merging the two dataframes by coordinates confirm the coordinate decimal places are the same
-# round to the same decimal places so you get the bio values for all 5000 samples
-bio_AOI_df_std$x <- round(bio_AOI_df_std$x, 5)
-bio_AOI_df_std$y <- round(bio_AOI_df_std$y, 5)
-alp_occ_1_df$x <- round(alp_occ_1_df$x, 5)
-alp_occ_1_df$y <- round(alp_occ_1_df$y, 5)
-
-# merge the 5000 sampled occurrences with the bio variables by their coordinates
-# now that the coords are aligned, merge dataframes together by coords (x,y)
-bio_occ_1_df_xy <- merge(bio_AOI_df_std, alp_occ_1_df, by = c("x", "y"))
-# keep one unbiased df with coordinates for plotting
-
-glimpse(bio_occ_1_df_xy)
-# dataframe contains 5000 observations (sample points) with their respective bio variable values
-
-# now that the dataframes are merged, the coordinate columns can be eliminated
-bio_occ_1_df <- bio_occ_1_df_xy[ , c(-1,-2)]
-
-# confirm remaining columns are all bio variables
-glimpse(bio_occ_1_df)
-# rows = 5000 (occurrence samples)
-# columns = 7 (bio variables)
-
-# save the unbiased bio variable dataframe containing 5000 occurrences
-save(bio_occ_1_df_xy, file = "VS_HV/bio_occ_1_df_xy")
-save(bio_occ_1_df, file = "VS_HV/bio_occ_1_df")
-
-# a dataframe containing the 5000 unbiased sampled occurrences and bio variables has been created
-################################################################################
-# OBJECTIVE 2: Create Unbiased Sample HV and Observe Volume Change over Number of Samples for 10 Simulations
-  # PART A: Retrieve a subsample of the unbiased occurrence points that matches the same
-    #...sampling effort as the biased points
-  # PART B: Run the unbiased HV calculations for 10 simulations
-  # PART C: Plot the unbiased HV volume over number of samples
 #------------------------------------------------------------------------------
-# PART A: Retrieve a subsample of the unbiased occurrence points that matches the same
-#...sampling effort as the biased points
-# Purpose: the biased sampling resulted in the collection of only 24 out of 200 unbiased samples.
-  # In order for better comparison of the unbiased and biased HVs, the unbiased and biased HV
-  #...should be calculated from similar sampling efforts (similar amount of samples)
+# PART A: Scenario 1 Unbiased Sample Bio Extraction
+# UNBIASED SAMPLES = 418 Randomly Selected Samples (348 + 20%)
 
-
-# Retrieve rows from the unbiased and biased sampling
-nrow(bio_bias_1_df_xy) # 348
-nrow(bio_occ_1_df_xy) # 5000
+# Retrieve number of rows from the biased sampling
+nrow(bio_bias_df_xy) # 348
 # create a stop that equates to the number of biased sampled collected with an additional 20%
-  #...of the biased samples collected
-stop <-  ceiling(nrow(bio_bias_1_df_xy) + 0.2 * (nrow(bio_bias_1_df_xy)))
+#...of the biased samples collected to show similar sample efforts with curve trend with additional samples
+stop <-  ceiling(nrow(bio_bias_df_xy) + 0.2 * (nrow(bio_bias_df_xy)))
 # result is a stopping point of 418 samples (amount of unbiased samples to be retrieved)
+
+# select 418 random samples to represent completely unbiased occurrence dataset
+sample_1_indices <- sample(nrow(bio_occ_total_df_xy), 418)
+bio_1_df_xy <- bio_occ_total_df_xy[sample_1_indices, ]
+# save one df with coordinates
+
+glimpse(bio_1_df_xy)
+
+# remove x,y columns from the dataframe for HV calculation
+bio_1_df <- bio_1_df_xy[ , -c(1,2)]
+
+# save the unbiased dataframes
+write.csv(bio_1_df_xy, file="VS_HV/bio_1_df_xy.csv")
+write.csv(bio_1_df, file="VS_HV/bio_1_df.csv")
+
+#-------------------------------------------------------------------------------
+# PART B: Scenario 2 Unbiased Sample Bio Extraction
+# UNBIASED SAMPLES = 418 Samples (348 Roadside Biased + 20% Unbiased)
 
 # Retrieve a random subsample of 418 points from the unbiased points
 # this subsample must include the 348 biased samples as well plus an additional 20%
   #...of unbiased samples
 # Number of additional unbiased samples needed
-num_add_samples <- stop - nrow(bio_bias_1_df_xy) # 70
+num_add_samples <- stop - nrow(bio_bias_df_xy) # 70
 
-# Retrieve a random subsample of 70 unbiased samples from bio_occ_1_df
-# First, we need to remove the biased samples from bio_occ_1_df to ensure they are not included again
+# Retrieve a random subsample of 70 unbiased samples from bio_occ_total_df
+# First, remove the biased samples from bio_occ_total_df to ensure they are not included again
 set.seed(123) # Setting a seed for reproducibility
-bio_occ_1_df_xy_sub <- bio_occ_1_df_xy %>%
-  anti_join(bio_bias_1_df_xy, by = names(bio_occ_1_df_xy)[1:9]) %>% # Using column indices
+bio_2_df_xy <- bio_occ_total_df_xy %>%
+  anti_join(bio_bias_df_xy, by = names(bio_occ_total_df_xy)[1:9]) %>% # Using column indices
   sample_n(num_add_samples)
   # 70 samples were collected
 
 # Combine the biased samples with the new random unbiased samples
-bio_occ_1_df_xy_sub <- bind_rows(bio_bias_1_df_xy, bio_occ_1_df_xy_sub)
+bio_2_df_xy <- bind_rows(bio_bias_df_xy, bio_2_df_xy)
 
 # Verify the final sample size
-nrow(bio_occ_1_df_xy_sub)
+nrow(bio_2_df_xy)
 # 418 samples
 
 # add a biased = yes/no column to the 5,000 occurrence dataframe
-bio_occ_1_df_all <- bio_occ_1_df_xy %>%
-  mutate(biased = ifelse(row_number() %in% row_number(semi_join(bio_occ_1_df_xy, bio_bias_1_df_xy)), "yes", "no"))
-
-write.csv(bio_occ_1_df_all, file = "VS_HV/bio_occ_1_df_all.csv")
+# bio_occ_1_df_all <- bio_occ_1_df_xy %>%
+  # mutate(biased = ifelse(row_number() %in% row_number(semi_join(bio_occ_1_df_xy, bio_bias_1_df_xy)), "yes", "no"))
 
 # remove coordinates from subset df for HV calculation
-bio_occ_1_df_sub <- bio_occ_1_df_xy_sub[ , -c(1,2)]
+bio_2_df <- bio_2_df_xy[ , -c(1,2)]
 # now the unbiased points contain 450 randomly selected points from the unbiased point dataset
 
-glimpse(bio_occ_1_df_sub)
+glimpse(bio_2_df)
 # result is 418 occurrences with 7 bio variables
 
 # save the random subsample
-save(bio_occ_1_df_xy_sub, file = "VS_HV/bio_occ_1_df_xy_sub")
-save(bio_occ_1_df_sub, file = "VS_HV/bio_occ_1_df_sub")
-# load("VS_HV/bio_occ_1_df_sub")
+write.csv(bio_2_df_xy, file = "VS_HV/bio_2_df_xy.csv")
+write.csv(bio_2_df, file = "VS_HV/bio_2_df.csv")
 
 #-------------------------------------------------------------------------------
-# PART B: Run the Unbiased HV Calculations for 10 simulations
+# PART C: Scenario 3 Unbiased Sample Bio Extraction
+# UNBIASED SAMPLES = 418 Samples (348 Pseudo Biased + 20% Unbiased)
+
+# Retrieve a random subsample of 70 unbiased samples from bio_occ_total_df
+# First, remove the pseudo biased samples from bio_occ_total_df to ensure they are not included again
+# set.seed(123) # Setting a seed for reproducibility
+bio_3_df_xy <- bio_occ_total_df_xy %>%
+  anti_join(bio_psbias_df_xy, by = names(bio_occ_total_df_xy)[1:9]) %>% # Using column indices
+  sample_n(num_add_samples)
+# 70 samples were collected
+
+# Combine the pseudo biased samples with the new random unbiased samples
+bio_3_df_xy <- bind_rows(bio_psbias_df_xy, bio_3_df_xy)
+
+# Verify the final sample size
+nrow(bio_3_df_xy)
+# 418 samples
+
+# remove coordinates from subset df for HV calculation
+bio_3_df <- bio_3_df_xy[ , -c(1,2)]
+# now the unbiased points contain 450 randomly selected points from the unbiased point dataset
+
+glimpse(bio_3_df)
+# result is 418 occurrences with 7 bio variables
+
+# save the random subsample
+write.csv(bio_3_df_xy, file = "VS_HV/bio_3_df_xy.csv")
+write.csv(bio_3_df, file = "VS_HV/bio_3_df.csv")
+
+################################################################################
+# OBJECTIVE 2: Create Unbiased Sample HV and Observe Volume Change over Number of Samples
+# PART A: Run the unbiased HV calculations for 10 simulations for each scenario
+# PART B: Plot the unbiased HV volume over number of samples for each scenario
+
+#------------------------------------------------------------------------------
+# PART A: Run the biased HV calculations for 10 simulations for each scenario
 # Purpose: using the two HV calculation functions created, the unbiased HV volume
   #....over number of samples can be created and run for 10 simulations
 
-# store number of simulations
+# store number of simulations (same as biased HV)
 num_sim <- 10
 
 # list of the occurrences to be tested (start at 100, by 100, until 418)
@@ -253,79 +154,229 @@ n_occ_list <- c(seq(from = 100, to = stop, by = 100), stop)
 # Iteration 4 = 400 samples
 # Iteration 5 = 418 samples
 
+#_______________________________________________________________________________
+## SCENARIO 1 ##
+
 # List to store the simulations
-sim_list <- list()
+sim_1_list <- list()
 
 # Simulation Loop
 for (sim in 1:num_sim) {
   
-    output_occ_list <- list() # list to store the output occurrences
+    output_occ_1_list <- list() # list to store the output occurrences
  
   for (i in seq_along(n_occ_list)) {
-    output_results <- calc_accum(bio_occ_1_df_sub, n_occ_list[i]) #calc_accum function used on unbiased samples for stated sequence
+    output_1_results <- calc_accum(bio_1_df, n_occ_list[i]) #calc_accum function used on unbiased samples for stated sequence
   
-    output_occ_list[[i]] <- output_results[[1]] # store results into output occurrence list (volume and number of occurrences)
+    output_occ_1_list[[i]] <- output_1_results[[1]] # store results into output occurrence list (volume and number of occurrences)
     
     }
   
   # Add the occurrence list to the simulation list
-  sim_list[[sim]] <- output_occ_list
+  sim_1_list[[sim]] <- output_occ_1_list
 }
 # The end result of the loop is a list of 10 simulations, each simulation containing
   #...its own individual list containing the results (volumes, occurrences)
   #...for each iteration
 
 # Combine all simulations into one dataframe
-sims_df <- do.call(rbind, lapply(seq_along(sim_list), function(sim) {
-  do.call(rbind, lapply(sim_list[[sim]], function(df) {
+sims_1_df <- do.call(rbind, lapply(seq_along(sim_1_list), function(sim) {
+  do.call(rbind, lapply(sim_1_list[[sim]], function(df) {
     df$sim <- sim
     df
   }))
 }))
 
 # view the simulation dataframe
-glimpse(sims_df)
+glimpse(sims_1_df)
 # 3 columns: volumes, num_occ, simulations
-# 488 observations
+# 514 observations
 
 # save unbiased simulation dataframe
-save(sims_df, file = "VS_HV/sims_df")
+write.csv(sims_1_df, file = "VS_HV/sims_1_df.csv")
+
+#_______________________________________________________________________________
+## SCENARIO 2 ##
+
+# List to store the simulations
+sim_2_list <- list()
+
+# Simulation Loop
+for (sim in 1:num_sim) {
+  
+  output_occ_2_list <- list() # list to store the output occurrences
+  
+  for (i in seq_along(n_occ_list)) {
+    output_2_results <- calc_accum(bio_2_df, n_occ_list[i]) #calc_accum function used on unbiased samples for stated sequence
+    
+    output_occ_2_list[[i]] <- output_2_results[[1]] # store results into output occurrence list (volume and number of occurrences)
+    
+  }
+  
+  # Add the occurrence list to the simulation list
+  sim_2_list[[sim]] <- output_occ_2_list
+}
+# The end result of the loop is a list of 10 simulations, each simulation containing
+#...its own individual list containing the results (volumes, occurrences)
+#...for each iteration
+
+# Combine all simulations into one dataframe
+sims_2_df <- do.call(rbind, lapply(seq_along(sim_2_list), function(sim) {
+  do.call(rbind, lapply(sim_2_list[[sim]], function(df) {
+    df$sim <- sim
+    df
+  }))
+}))
+
+# view the simulation dataframe
+glimpse(sims_2_df)
+# 3 columns: volumes, num_occ, simulations
+# 464 observations
+
+# save unbiased simulation dataframe
+write.csv(sims_2_df, file = "VS_HV/sims_2_df.csv")
+
+#_______________________________________________________________________________
+## SCENARIO 3 ##
+
+# List to store the simulations
+sim_3_list <- list()
+
+# Simulation Loop
+for (sim in 1:num_sim) {
+  
+  output_occ_3_list <- list() # list to store the output occurrences
+  
+  for (i in seq_along(n_occ_list)) {
+    output_3_results <- calc_accum(bio_3_df, n_occ_list[i]) #calc_accum function used on unbiased samples for stated sequence
+    
+    output_occ_3_list[[i]] <- output_3_results[[1]] # store results into output occurrence list (volume and number of occurrences)
+    
+  }
+  
+  # Add the occurrence list to the simulation list
+  sim_3_list[[sim]] <- output_occ_3_list
+}
+# The end result of the loop is a list of 10 simulations, each simulation containing
+#...its own individual list containing the results (volumes, occurrences)
+#...for each iteration
+
+# Combine all simulations into one dataframe
+sims_3_df <- do.call(rbind, lapply(seq_along(sim_3_list), function(sim) {
+  do.call(rbind, lapply(sim_3_list[[sim]], function(df) {
+    df$sim <- sim
+    df
+  }))
+}))
+
+# view the simulation dataframe
+glimpse(sims_3_df)
+# 3 columns: volumes, num_occ, simulations
+# 507 observations
+
+# save unbiased simulation dataframe
+write.csv(sims_3_df, file = "VS_HV/sims_3_df.csv")
 
 #--------------------------------------------------------------------------------
-# PART C: Calculate the Mean Prediction and Plot the average unbiased HV volume over number of samples from the 10 Simulations
+# PART B: Calculate the Mean Prediction and Plot the average unbiased HV volume over number of samples from the 10 Simulations
 
-# iterates over each unique occurrence number value.
-# Fits a LOESS (Locally Estimated Scatterplot Smoothing) model for each number
-  # ...of occurrence to predict hv volume using the simulation data
-# LOESS model: Smooths out noise and variations to get a better understanding of relationship between HV volume and # occurrences
-# lapply: apply the function (n) to each unique number of occurrence (100, 200, 300, 400, 418)
-loess_preds <- lapply(unique(sims_df$num_occ), function(n) {
+## SCENARIO 1 ##
+
+loess_1_preds <- lapply(unique(sims_1_df$num_occ), function(n) {
   # iterate over each unique number of occurrence (n)
-  preds <- sapply(sim_list, function(list) {
+  preds_1 <- sapply(sim_1_list, function(list) {
     # Fit LOESS model
-    loess_fit <- loess(volumes ~ num_occ, data = do.call(rbind, list))
+    loess_1_fit <- loess(volumes ~ num_occ, data = do.call(rbind, list))
     # predict HV for current number of occurrences (n)
-    predict(loess_fit, newdata = data.frame(num_occ = n))
+    predict(loess_1_fit, newdata = data.frame(num_occ = n))
   })
   # calculate mean predictions
-  data.frame(num_occ = n, hv_mean = mean(preds, na.rm = TRUE))
+  data.frame(num_occ = n, hv_mean = mean(preds_1, na.rm = TRUE))
 })
 # what this code does it fits a LOESS model for each unique occurrence value (100, 200, 300, 400, 419)
   #....in each simulation. Then it takes the average LOESS prediction of each unique occurrence value
   #...of all 10 simulations.
 
 # combine all mean predictions of each simulation into a dataframe (already LOESS fitted)
-mean_preds <- do.call(rbind, loess_preds)
+mean_1_preds <- do.call(rbind, loess_1_preds)
 
 # Plot the LOESS model for the 10 individual simulations along with the mean LOESS predictions
 ggplot() +
-  geom_smooth(data = sims_df, aes(x = num_occ, y = volumes, group = sim), # data from all individual simulations
+  geom_smooth(data = sims_1_df, aes(x = num_occ, y = volumes, group = sim), # data from all individual simulations
               method = "loess", se = FALSE, color = "grey", size = 0.5, alpha = 0.5) + 
-  geom_line(data = mean_preds, aes(x = num_occ, y = hv_mean), # mean prediction LOESS
+  geom_line(data = mean_1_preds, aes(x = num_occ, y = hv_mean), # mean prediction LOESS
             color = "deeppink", size = 1.2) +
   labs(title = "Hypervolume Mean: Unbiased (10 Simulations)",
        x = "Number of Occurrences",
        y = "Hypervolume Volume") +
   theme_minimal()
-# the graph depicts the average HV volume over number of samples. Convergence was
-  #...not achieved in any of the simulations
+# the graph depicts the average HV volume over number of samples
+
+#_______________________________________________________________________________
+## SCENARIO 2 ##
+
+loess_2_preds <- lapply(unique(sims_2_df$num_occ), function(n) {
+  # iterate over each unique number of occurrence (n)
+  preds_2 <- sapply(sim_2_list, function(list) {
+    # Fit LOESS model
+    loess_2_fit <- loess(volumes ~ num_occ, data = do.call(rbind, list))
+    # predict HV for current number of occurrences (n)
+    predict(loess_2_fit, newdata = data.frame(num_occ = n))
+  })
+  # calculate mean predictions
+  data.frame(num_occ = n, hv_mean = mean(preds_2, na.rm = TRUE))
+})
+# what this code does it fits a LOESS model for each unique occurrence value (100, 200, 300, 400, 419)
+#....in each simulation. Then it takes the average LOESS prediction of each unique occurrence value
+#...of all 10 simulations.
+
+# combine all mean predictions of each simulation into a dataframe (already LOESS fitted)
+mean_2_preds <- do.call(rbind, loess_2_preds)
+
+# Plot the LOESS model for the 10 individual simulations along with the mean LOESS predictions
+ggplot() +
+  geom_smooth(data = sims_2_df, aes(x = num_occ, y = volumes, group = sim), # data from all individual simulations
+              method = "loess", se = FALSE, color = "grey", size = 0.5, alpha = 0.5) + 
+  geom_line(data = mean_2_preds, aes(x = num_occ, y = hv_mean), # mean prediction LOESS
+            color = "deeppink", size = 1.2) +
+  labs(title = "Hypervolume Mean: Unbiased (10 Simulations)",
+       x = "Number of Occurrences",
+       y = "Hypervolume Volume") +
+  theme_minimal()
+# the graph depicts the average HV volume over number of samples
+
+#_______________________________________________________________________________
+## SCENARIO 3 ##
+
+loess_3_preds <- lapply(unique(sims_3_df$num_occ), function(n) {
+  # iterate over each unique number of occurrence (n)
+  preds_3 <- sapply(sim_3_list, function(list) {
+    # Fit LOESS model
+    loess_3_fit <- loess(volumes ~ num_occ, data = do.call(rbind, list))
+    # predict HV for current number of occurrences (n)
+    predict(loess_3_fit, newdata = data.frame(num_occ = n))
+  })
+  # calculate mean predictions
+  data.frame(num_occ = n, hv_mean = mean(preds_3, na.rm = TRUE))
+})
+# what this code does it fits a LOESS model for each unique occurrence value (100, 200, 300, 400, 419)
+#....in each simulation. Then it takes the average LOESS prediction of each unique occurrence value
+#...of all 10 simulations.
+
+# combine all mean predictions of each simulation into a dataframe (already LOESS fitted)
+mean_3_preds <- do.call(rbind, loess_3_preds)
+
+# Plot the LOESS model for the 10 individual simulations along with the mean LOESS predictions
+ggplot() +
+  geom_smooth(data = sims_3_df, aes(x = num_occ, y = volumes, group = sim), # data from all individual simulations
+              method = "loess", se = FALSE, color = "grey", size = 0.5, alpha = 0.5) + 
+  geom_line(data = mean_3_preds, aes(x = num_occ, y = hv_mean), # mean prediction LOESS
+            color = "deeppink", size = 1.2) +
+  labs(title = "Hypervolume Mean: Unbiased (10 Simulations)",
+       x = "Number of Occurrences",
+       y = "Hypervolume Volume") +
+  theme_minimal()
+# the graph depicts the average HV volume over number of samples
+
+###############################################################################
+# CONCLUSION: 
