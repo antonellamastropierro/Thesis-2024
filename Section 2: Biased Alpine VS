@@ -2,13 +2,14 @@
 
 # PRELIMINARY: Retrieve AOI Open Street Map (OSM) with Selected Roads
 # OBJECTIVE 1: Determine the Sampling Probability of Each Sample Point From a Road
-# OBJECTIVE 2: Identify Number of Samples Collected with Road Bias in Place
+# OBJECTIVE 2: Scenarios 1 and 2 - Identify Number of Samples Collected with Road Bias in Place
+# OBJECTIVE 3: Scenario 3 - Retrieve Random Subset of Data with Same Number of Samples as the Roadside Bias Dataset
 
 ################################################################################
 # SECTION I: UNBIASED ALPINE VS RECAP
 # Created a virtual species based on fixed alpine climate parameters with suitability to an alpine climate
 # Created a presence/absence plot depicting the total realized niche of the species
-# Sampled for 5000 occurrences that represent the unbiased actual realized niche
+# Sampled for 5000 occurrences that represent the actual realized niche
 
 ################################################################################
 # LEGEND:
@@ -131,9 +132,9 @@ d <- distance(r, unit = "km")
 
 # save the spatraster
 writeRaster(d, "VS_AOI_Biased/d.tif")
-
 # to load the saved spatraster
 d <- rast("VS_AOI_Biased/d.tif")
+
 # once the distance of each cell to the nearest road is calculated, a raster layer
   #...containing distance values of each cell can be created
 d_rstr <- raster(d)
@@ -204,8 +205,7 @@ prob_sprstr <- classify(d, cbind(values(d), sampling_prob_df))
 
 # save the probability spatraster
 writeRaster(prob_sprstr, file = "VS_AOI_Biased/prob_sprstr.tif")
-
-# to load a spatraster
+# to load the spatraster
 # prob_sprstr <- rast("VS_AOI_Biased/prob_sprstr.tif")
 
 plot(prob_sprstr)
@@ -223,7 +223,6 @@ plot(prob_rstr)
 
 # save the probability raster layer
 writeRaster(prob_rstr, file = "VS_AOI_Biased/prob_rstr.tif")
-
 # load the sampling probability raster layer
 # prob_rstr <- raster("VS_AOI_Biased/prob_rstr.tif")
 
@@ -249,63 +248,35 @@ dev.off()
 
 ################################################################################
 # OBJECTIVE 2: Identify Number of Samples Collected with Road Bias in Place
+# Scenarios 1 and 2 will be using the biased dataset collected by the points within 1 km from a road
 
 # convert the occurrence sample points (specify function from terra package)
-coord_occ_1 <- terra::vect(alp_occ_1$sample.points, geom = c("x","y"), crs="epsg:4326")
+coord_occ <- terra::vect(alp_occ$sample.points, geom = c("x","y"), crs="epsg:4326")
 
 # extract probability of each point to be sampled (specify function from terra package)
-occ_prob_1 <- terra::extract(prob_sprstr, coord_occ_1, ID = TRUE)
+occ_prob <- terra::extract(prob_sprstr, coord_occ, ID = TRUE)
 
 # Add the probability value to the points
-occ_prob_1 <- cbind(coord_occ_1, occ_prob_1)
+occ_prob <- cbind(coord_occ, occ_prob)
 
 # Retrieve points only with 100% of probability (within 1 km from roads)
-occ_bias_1 <- occ_prob_1[occ_prob_1$layer == 1, ]
+occ_bias <- occ_prob[occ_prob$layer == 1, ]
 # 348 SAMPLES out of 5000
 
 # Convert biased points to sf object to be used later for plotting against the unbiased subset samples
-occ_bias_1_sf <- st_as_sf(occ_bias_1, coords = c("x", "y"), crs = 4326)
+occ_bias_sf <- st_as_sf(occ_bias, coords = c("x", "y"), crs = 4326)
 
 # save the biased points shapefile
-save(occ_bias_1_sf, file = "VS_AOI_Biased/occ_bias_1_sf.shp")
-# load("VS_AOI_Biased/occ_bias_1_sf.shp")
+save(occ_bias_sf, file = "VS_AOI_Biased/occ_bias_sf.shp")
+# load("VS_AOI_Biased/occ_bias_sf.shp")
 
 dev.off()
-
-#-------------------------------------------------------------------------------
-# Plot the biased points and the unbiased points together on the suitability map
-
-# biased point dataframe with coord: bio_bias_1_df_xy
-# unbiased point dataframe with coord: bio_occ_1_df_sub_xy
-# suitability dataframe: vs_suit_df
-
-ggplot() +
-  geom_raster(data = vs_suit_df, aes(x = x, y = y, fill = suitability)) +  # Replace 'layer' with actual raster value column name
-  scale_fill_viridis_c() + 
-  geom_point(data = bio_occ_1_df_xy_sub, aes(x = x, y = y, color = "unbiased points"), alpha = 0.7, size = 2) +# Use appropriate scale for your data
-  geom_point(data = bio_bias_1_df_xy, aes(x = x, y = y, color = "biased points"), alpha = .7, size = 2) +
-  scale_color_manual(values = c("biased points" = "red", "unbiased points" = "green")) +
-  theme_minimal() +
-  labs(title = "Suitability Plot: Biased and Unbiased Points", x = "Longitude", y = "Latitude", color = "Point Type")
-
-#-------------------------------------------------------------------------------
-# Plot the biased points and the total occurrences together on the suitabliity map
-
-ggplot() +
-  geom_raster(data = vs_suit_df, aes(x = x, y = y, fill = suitability)) +  # Replace 'layer' with actual raster value column name
-  scale_fill_viridis_c() + 
-  geom_point(data = bio_occ_1_df_xy, aes(x = x, y = y, color = "total points"), alpha = 0.7, size = 2) +# Use appropriate scale for your data
-  geom_point(data = bio_bias_1_df_xy, aes(x = x, y = y, color = "biased points"), alpha = .7, size = 2) +
-  scale_color_manual(values = c("biased points" = "red", "total points" = "green")) +
-  theme_minimal() +
-  labs(title = "Suitability Plot: Biased and Total Points", x = "Longitude", y = "Latitude", color = "Point Type")
-
 
 ################################################################################
 # CONCLUSION: a distance raster and sampling probability raster have been created
   #...with assigned distance from roads and sampling probability values for each cell.
   # This allows for the easy extraction of sampling probability values for the sampled
-  #...occurrences. The sampling probability values were extracted for each of the 200
-  #...unbiased occurrences, filtered to samples only having 100% sampling probability
+  #...occurrences. The sampling probability values were extracted for each of the 5000
+  #...unbiased occurrences and then filtered to samples only having 100% sampling probability
   #...resulting in the biased occurrences.
-  # 348 biased occurrences out of 5000 unbiased occurrences.
+  # 348 roadside biased occurrences out of 5000 unbiased occurrences.
