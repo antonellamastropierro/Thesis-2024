@@ -1,12 +1,17 @@
-# SECTION V: UNBIASED AND BIASED HV COMPARISON
+# SECTION V: HYPERVOLUME COMPARISON
 
 # OBJECTIVE 1: Plot the Unbiased and Biased Results Together
 # OBJECTIVE 2: Quantify the Differences Between Unbiased and Biased Hypervolumes
+# OBJECTIVE 3: Create Boxplots Showing Data Variability
 
 ################################################################################
-# SECTION IV: BIASED ALPINE HV RECAP
-# Extracted Biased Sampling Bio Variables
-# Created biased Sample HV and Observed Volume Change over Number of Samples for 10 Simulations
+# SECTION III: UNBIASED ALPINE HV RECAP
+# Standardize the Bio Variable Raster Layers for Consistency with HV Calculation
+# Created two HV Calculation Functions:
+# 1: HV Gaussian Calculation
+# 2: HV Accumulation Calculation and Convergence Criteria Check
+# Extracted Unbiased Sampling Bio Variables
+# Created Unbiased Sample HV and Observe Volume Change over Number of Samples for 10 Simulations
 
 ################################################################################
 # LEGEND:
@@ -20,23 +25,75 @@
 # sf = shapefile
 ################################################################################
 # OBJECTIVE 1: Plot the Unbiased and Biased Results Together
+  # PART A: Scenario 1
+  # PART B: Scenario 2
+  # PART C: Scenario 3
+
+#-------------------------------------------------------------------------------
+# PART A: Scenario 1
 
 # Filter any NAs
-mean_preds <- filter(mean_preds, !is.na(num_occ) & !is.na(hv_mean))
+mean_1_preds <- filter(mean_1_preds, !is.na(num_occ) & !is.na(hv_mean))
 mean_preds_bias <- filter(mean_preds_bias, !is.na(num_occ) & !is.na(hv_mean))
 
 # Plot the mean LOESS predictions for unbiased and biased HVs with their individual simulation results
 ggplot() +
-  geom_smooth(data = sims_df, aes(x = num_occ, y = volumes, group = sim, color = "Unbiased"), 
+  geom_smooth(data = sims_1_df, aes(x = num_occ, y = volumes, group = sim, color = "Unbiased"), 
               method = "loess", se = FALSE, size = 0.5, alpha = 0.5) +
   geom_smooth(data = sims_bias_df, aes(x = num_occ, y = volumes, group = sim, color = "Biased"), 
               method = "loess", se = FALSE, size = 0.5, alpha = 0.5) +
-  geom_line(data = mean_preds, aes(x = num_occ, y = hv_mean, color = "Unbiased Mean"), 
+  geom_line(data = mean_1_preds, aes(x = num_occ, y = hv_mean, color = "Unbiased Mean"), 
             size = 1.2) +
   geom_line(data = mean_preds_bias, aes(x = num_occ, y = hv_mean, color = "Biased Mean"), 
             size = 1.2) +
-  labs(title = "HV Volume over Number of Occurrences: Unbiased vs. Biased",
+  labs(title = "Scenario 1: Unbiased vs. Biased Hypervolume Means",
        x = "Occurrences",
+       y = "Volume",
+       color = "Legend") +
+  scale_color_manual(values = c("Unbiased Mean" = "deeppink", "Biased Mean" = "turquoise4")) +
+  theme_minimal()
+
+#-------------------------------------------------------------------------------
+# PART B: Scenario 2
+
+# Filter any NAs
+mean_2_preds <- filter(mean_2_preds, !is.na(num_occ) & !is.na(hv_mean))
+mean_preds_bias <- filter(mean_preds_bias, !is.na(num_occ) & !is.na(hv_mean))
+
+# Plot the mean LOESS predictions for unbiased and biased HVs with their individual simulation results
+ggplot() +
+  geom_smooth(data = sims_2_df, aes(x = num_occ, y = volumes, group = sim, color = "Unbiased"), 
+              method = "loess", se = FALSE, size = 0.5, alpha = 0.5) +
+  geom_smooth(data = sims_bias_df, aes(x = num_occ, y = volumes, group = sim, color = "Biased"), 
+              method = "loess", se = FALSE, size = 0.5, alpha = 0.5) +
+  geom_line(data = mean_2_preds, aes(x = num_occ, y = hv_mean, color = "Unbiased Mean"), 
+            size = 1.2) +
+  geom_line(data = mean_preds_bias, aes(x = num_occ, y = hv_mean, color = "Biased Mean"), 
+            size = 1.2) +
+  labs(title = "Scenario 2: Unbiased vs. Biased Hypervolume Means",
+       y = "Volume",
+       color = "Legend") +
+  scale_color_manual(values = c("Unbiased Mean" = "deeppink", "Biased Mean" = "turquoise4")) +
+  theme_minimal()
+
+#-------------------------------------------------------------------------------
+# PART C: Scenario 3
+
+# Filter any NAs
+mean_3_preds <- filter(mean_3_preds, !is.na(num_occ) & !is.na(hv_mean))
+mean_preds_psbias <- filter(mean_preds_psbias, !is.na(num_occ) & !is.na(hv_mean))
+
+# Plot the mean LOESS predictions for unbiased and biased HVs with their individual simulation results
+ggplot() +
+  geom_smooth(data = sims_3_df, aes(x = num_occ, y = volumes, group = sim, color = "Unbiased"), 
+              method = "loess", se = FALSE, size = 0.5, alpha = 0.5) +
+  geom_smooth(data = sims_psbias_df, aes(x = num_occ, y = volumes, group = sim, color = "Biased"), 
+              method = "loess", se = FALSE, size = 0.5, alpha = 0.5) +
+  geom_line(data = mean_3_preds, aes(x = num_occ, y = hv_mean, color = "Unbiased Mean"), 
+            size = 1.2) +
+  geom_line(data = mean_preds_psbias, aes(x = num_occ, y = hv_mean, color = "Biased Mean"), 
+            size = 1.2) +
+  labs(title = "Scenario 3: Unbiased vs. Biased Hypervolume Means",
        y = "Volume",
        color = "Legend") +
   scale_color_manual(values = c("Unbiased Mean" = "deeppink", "Biased Mean" = "turquoise4")) +
@@ -44,102 +101,305 @@ ggplot() +
 
 ################################################################################
 # OBJECTIVE 2: Quantify the Differences Between Unbiased and Biased Hypervolumes
+  # PART A: Scenario 1 - Max and Final
+  # PART B: Scenario 2 - Max and Final
+  # PART C: Scenario 3 - Max and Final
 
+#-------------------------------------------------------------------------------
+# PART A: Scenario 1
+
+# Max HV Size
 # retrieve max HV values for both unbiased and biased
-# final_unbiased <- tail(mean_preds, 1)
-# final_biased <- tail(mean_preds_bias, 1)
-max_unbiased <- subset(mean_preds, hv_mean == max(hv_mean))
-max_biased <- subset(mean_preds_bias, hv_mean == max(hv_mean))
+max_1 <- subset(mean_1_preds, hv_mean == max(hv_mean))
+max_bias <- subset(mean_preds_bias, hv_mean == max(hv_mean))
 
 # combine the results together in one dataframe
-max_results <- data.frame(
+max_results_1 <- data.frame(
   type = c("unbiased", "biased"),
-  num_occ = c(max_unbiased$num_occ, max_biased$num_occ),
-  volumes = c(max_unbiased$hv_mean, max_biased$hv_mean)
+  num_occ = c(max_1$num_occ, max_bias$num_occ),
+  volumes = c(max_1$hv_mean, max_bias$hv_mean)
 )
 
-max_results
-# unbiased: num_occ = 200, volume = 283.01
-# biased: num_occ = 175, volume = 9347.08
+max_results_1
+# unbiased: num_occ = 242, volume = 144.2381
+# biased: num_occ = 179, volume = 9508.8556
+
+#______________________________________________________________________________#
+# Final HV size
+# final_unbiased <- tail(mean_preds, 1)
+# final_biased <- tail(mean_preds_bias, 1)
+final_1 <- subset(mean_1_preds, num_occ == max(num_occ))
+final_bias <- subset(mean_preds_bias, num_occ == max(num_occ))
+
+# combine the results together in one dataframe
+final_results_1 <- data.frame(
+  type = c("unbiased", "biased"),
+  num_occ = c(final_1$num_occ, final_bias$num_occ),
+  volumes = c(final_1$hv_mean, final_bias$hv_mean)
+)
+
+final_results_1
+# unbiased: num_occ = 418, volume = 140.6831
+# biased: num_occ = 348, volume = 8254.0621
 
 #------------------------------------------------------------------------------
-# Create Boxplot Showing Central Tendency Differences between biased and unbiased
+# PART B: Scenario 2  
 
-# unbiased dataframe (subset) = bio_occ_1_df_sub
-# biased dataframe = bio_bias_1_df
+# Max HV Size
+# retrieve max HV values for both unbiased and biased
+max_2 <- subset(mean_2_preds, hv_mean == max(hv_mean))
+max_bias <- subset(mean_preds_bias, hv_mean == max(hv_mean)) # same as scenario 1
 
-# Add source labels
-bio_occ_1_df$source <- 'Biased'
-bio_bias_1_df$source <- 'Unbiased'
+# combine the results together in one dataframe
+max_results_2 <- data.frame(
+  type = c("unbiased", "biased"),
+  num_occ = c(max_2$num_occ, max_bias$num_occ),
+  volumes = c(max_2$hv_mean, max_bias$hv_mean)
+)
 
-# Combine the two dataframes
-combined_data <- rbind(bio_occ_1_df, bio_bias_1_df)
+max_results_2
+# unbiased: num_occ = 200, volume = 8091.649
+# biased: num_occ = 179, volume = 9508.8556
+
+#______________________________________________________________________________#
+# Final HV size
+# final_unbiased <- tail(mean_preds, 1)
+# final_biased <- tail(mean_preds_bias, 1)
+final_2 <- subset(mean_2_preds, num_occ == max(num_occ))
+final_bias <- subset(mean_preds_bias, num_occ == max(num_occ))
+
+# combine the results together in one dataframe
+final_results_2 <- data.frame(
+  type = c("unbiased", "biased"),
+  num_occ = c(final_2$num_occ, final_bias$num_occ),
+  volumes = c(final_2$hv_mean, final_bias$hv_mean)
+)
+
+final_results_2
+# unbiased: num_occ = 418, volume = 6424.721
+# biased: num_occ = 348, volume = 8254.0621
+
+#------------------------------------------------------------------------------
+# PART C: Scenario 3
+
+# Max HV Size
+# retrieve max HV values for both unbiased and biased
+max_3 <- subset(mean_3_preds, hv_mean == max(hv_mean))
+max_psbias <- subset(mean_preds_psbias, hv_mean == max(hv_mean)) # same as scenario 1
+
+# combine the results together in one dataframe
+max_results_3 <- data.frame(
+  type = c("unbiased", "biased"),
+  num_occ = c(max_3$num_occ, max_psbias$num_occ),
+  volumes = c(max_3$hv_mean, max_psbias$hv_mean)
+)
+
+max_results_3
+# unbiased: num_occ = 182, volume = 226.4752
+# biased: num_occ = 302, volume = 173.7653
+
+#______________________________________________________________________________#
+# Final HV size
+
+final_3 <- subset(mean_3_preds, num_occ == max(num_occ))
+final_psbias <- subset(mean_preds_psbias, num_occ == max(num_occ))
+
+# combine the results together in one dataframe
+final_results_3 <- data.frame(
+  type = c("unbiased", "biased"),
+  num_occ = c(final_3$num_occ, final_psbias$num_occ),
+  volumes = c(final_3$hv_mean, final_psbias$hv_mean)
+)
+
+final_results_3
+# unbiased: num_occ = 418, volume = 179.4260
+# biased: num_occ = 348, volume = 168.9134
+
+################################################################################
+# OBJECTIVE 3: Create Boxplots Showing Data Variability
+  # PART A: Scenario 1
+  # PART B: Scenario 2
+  # PART C: Scenario 3
+  # PART D: Roadside Bias vs. Pseudo Bias
+
+# total dataframe = bio_occ_total_df
+
+#------------------------------------------------------------------------------
+# PART A: Scenario 1
+
+# Add a column to differentiate the datasets
+bio_occ_total_df$dataset <- 'Total Occurrences'
+bio_bias_df$dataset <- 'Biased Occurrences'
+bio_1_df$dataset <- 'Unbiased Occurrences'
+
+# Combine the dataframes
+comb_data_1 <- bind_rows(bio_bias_df, bio_1_df, bio_occ_total_df)
+
+# Convert 'dataset' to a factor with a specific order
+comb_data_1$dataset <- factor(comb_data_1$dataset, levels = c('Biased Occurrences', 'Unbiased Occurrences', 'Total Occurrences'))
 
 # Pivot the combined dataframe to long format
-long_data <- combined_data %>%
-  pivot_longer(cols = -source, names_to = "variable", values_to = "value")
+long_data_1 <- comb_data_1 %>%
+  pivot_longer(cols = -dataset, names_to = "Variable", values_to = "Value")
 
 # Create the boxplot
-ggplot(long_data, aes(x = variable, y = value, fill = source)) +
+ggplot(long_data_1, aes(x = Variable, y = Value, fill = dataset)) +
   geom_boxplot() +
   theme_minimal() +
-  labs(title = "Central Tendency Plot: Unbiased vs. Biased (Standardized)",
+  labs(title = "Scenario 1: Comparison of Variability across Datasets",
        x = "Variables",
-       y = "Values",
+       y = "Values (Standardized)",
        fill = "Dataset") +
+  scale_fill_viridis(discrete=T, option='D') +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
  # the boxplot shows the unbiased samples having more stability in terms of range
   #...and variability throughout all the bio variables. The biased samples have
   #...more variability and range
 
+#-------------------------------------------------------------------------------
+# PART B: Scenario 2
+
+# Add a column to just the unbiased dataset since other columns were added in Part A
+bio_2_df$dataset <- 'Unbiased Occurrences'
+
+# Combine the dataframes
+comb_data_2 <- bind_rows(bio_bias_df, bio_2_df, bio_occ_total_df)
+
+# Convert 'dataset' to a factor with a specific order
+comb_data_2$dataset <- factor(comb_data_2$dataset, levels = c('Biased Occurrences', 'Unbiased Occurrences', 'Total Occurrences'))
+
+# Pivot the combined dataframe to long format
+long_data_2 <- comb_data_2 %>%
+  pivot_longer(cols = -dataset, names_to = "Variable", values_to = "Value")
+
+# Create the boxplot
+ggplot(long_data_2, aes(x = Variable, y = Value, fill = dataset)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Scenario 2: Comparison of Variability across Datasets",
+       x = "Variables",
+       y = "Values (Standardized)",
+       fill = "Dataset") +
+  scale_fill_viridis(discrete=T, option='D') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# the boxplot shows the unbiased samples having more stability in terms of range
+#...and variability throughout all the bio variables. The biased samples have
+#...more variability and range
+
+#------------------------------------------------------------------------------
+# PART C: Scenario 3
+
+# Add a column to differentiate the datasets
+bio_psbias_df$dataset <- 'Biased Occurrences'
+bio_3_df$dataset <- 'Unbiased Occurrences'
+
+# Combine the dataframes
+comb_data_3 <- bind_rows(bio_psbias_df, bio_3_df, bio_occ_total_df)
+
+# Convert 'dataset' to a factor with a specific order
+comb_data_3$dataset <- factor(comb_data_3$dataset, levels = c('Biased Occurrences', 'Unbiased Occurrences', 'Total Occurrences'))
+
+# Pivot the combined dataframe to long format
+long_data_3 <- comb_data_3 %>%
+  pivot_longer(cols = -dataset, names_to = "Variable", values_to = "Value")
+
+# Create the boxplot
+ggplot(long_data_3, aes(x = Variable, y = Value, fill = dataset)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Scenario 3: Comparison of Variability across Datasets",
+       x = "Variables",
+       y = "Values (Standardized)",
+       fill = "Dataset") +
+  scale_fill_viridis(discrete=T, option='D') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# the boxplot shows the unbiased samples having more stability in terms of range
+#...and variability throughout all the bio variables. The biased samples have
+#...more variability and range
+
+#-------------------------------------------------------------------------------
+# PART D: Roadside Bias Vs. Pseudo Bias
+
+# Add a column to differentiate the datasets
+bio_psbias_df$dataset <- 'Pseudo Biased Occurrences'
+bio_bias_df$dataset <- 'Roadside Biased Occurrences'
+
+# Combine the dataframes
+comb_data_4 <- bind_rows(bio_psbias_df, bio_bias_df, bio_occ_total_df)
+
+# Convert 'dataset' to a factor with a specific order
+comb_data_4$dataset <- factor(comb_data_4$dataset, levels = c('Roadside Biased Occurrences', 'Pseudo Biased Occurrences', 'Total Occurrences'))
+
+# Pivot the combined dataframe to long format
+long_data_4 <- comb_data_4 %>%
+  pivot_longer(cols = -dataset, names_to = "Variable", values_to = "Value")
+
+# Create the boxplot
+ggplot(long_data_4, aes(x = Variable, y = Value, fill = dataset)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Scenario 4: Comparison of Variability between Roadside Biased and Pseudo Biased",
+       x = "Variables",
+       y = "Values (Standardized)",
+       fill = "Dataset") +
+  scale_fill_viridis(discrete=T, option='D') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# the boxplot shows the unbiased samples having more stability in terms of range
+#...and variability throughout all the bio variables. The biased samples have
+#...more variability and range
+
 #################################################################################
+## ADDITIONAL PLOTS FOR RESULTS ##
+#-------------------------------------------------------------------------------
 # PLOT UNBIASED AND BIASED SAMPLES AGAINST SUITABILITY MAP
 
-# Convert dataframes to sf objects
-bio_occ_1_sf <- st_as_sf(bio_occ_1_df_xy_sub, coords = c("x", "y"), crs = 4326)
-bio_bias_1_sf <- st_as_sf(bio_bias_1_df_xy, coords = c("x", "y"), crs = 4326)
+# Plot the biased points and the unbiased points together on the suitability map
 
-# suitability dataframe = vs_suit_df
+# roadside biased point dataframe with coord: bio_bias_df_xy
+# secenario 1 unbiased point dataframe with coord: bio_1_df_xy
 
-# Rename columns for easier use
-colnames(vs_suit_df) <- c("x", "y", "suitability")
 
-# Plot unbiased and biased samples
+# ggplot() +
+#  geom_raster(data = vs_suit_df, aes(x = x, y = y, fill = suitability)) +
+#  scale_fill_viridis_c(name = "Suitability Range", option = "D") +
+#  geom_point(data = bio_1_df_xy, aes(x = x, y = y, color = "Unbiased Points"), alpha = 0.7, size = 2) +
+#  geom_point(data = bio_bias_df_xy, aes(x = x, y = y, color = "Biased Points"), alpha = .7, size = 2) +
+#  scale_color_manual(values = c("Biased Points" = "red", "Unbiased Points" = "green")) +
+#  theme_minimal() +
+#  labs(title = "Suitability Plot: Biased and Unbiased Points", x = "Longitude", y = "Latitude", color = "Point Type")
+
+#-------------------------------------------------------------------------------
+# Plot the biased points and the total occurrences together on the suitability map
+
+# suitability range dataframe: vs_suit_df
+
 ggplot() +
-  geom_raster(data = vs_suit_df, aes(x = x, y = y, fill = suitability)) +
-  scale_fill_viridis_c() +
-  geom_sf(data = OSM_AOI$geometry, color = "black", size = 0.25) +
-  geom_sf(data = bio_occ_1_sf, aes(color = "Unbiased"), size = 1.2, shape = 16) +  # Unbiased points
-  geom_sf(data = bio_bias_1_sf, aes(color = "Biased"), size = 1.2, shape = 16) +  # Biased points
-  scale_color_manual(values = c("Unbiased" = "green", "Biased" = "red"), name = "Sampling Points") +
-  theme_bw() +
+  geom_raster(data = vs_suit_df, aes(x = x, y = y, fill = VSP.suitability)) +
+  scale_fill_viridis_c(name = "Suitability Range", option = "D") + 
+ # geom_point(data = bio_occ_total_df_xy, aes(x = x, y = y, color = "total points"), alpha = 0.2, size = 1.5, shape=1) +
+  geom_point(data = bio_bias_df_xy, aes(x = x, y = y, color = "roadside biased points"), alpha = .7, size = 1.5, shape=19) +
+  scale_color_manual(values = c("roadside biased points" = "deeppink", "total points" = "turquoise")) +
   theme_minimal() +
-  labs(title = "AOI: Biased and Unbiased Sampling Results",
-       fill = "Suitability", x = 'Longitude', y = 'Latitude')
-
-# the plot shows all of the unbiased samples tightly clustered together in the areas
-  #....of high suitability. The biased samples are dispersed throughout the AOI in areas
-  #...of low suitability.
+  labs(title = "Suitability Plot: Roadside Biased and Total Points", x = "Longitude", y = "Latitude", color = "Point Type")
 
 #-------------------------------------------------------------------------------
 # Alpine Climate Locations and Road Map Plot
 
-# if I want to include elevation
-# AOI_elev <- raster('alp_shpfiles/wc2.1_30s_elev.tif')
-# AOI_elev <- crop(AOI_elev, AOI)
-# AOI_elev <- mask(AOI_elev, AOI)
-
-# plot(AOI_elev)
-
 ggplot() +
   geom_sf(data = OSM_AOI$geometry, color = "black", size = 0.25) +
-  geom_sf(data = alp_AOI, color = "blue", size = 1) +
+  geom_sf(data = alp_AOI, color = "deeppink", size = 1, alpha=0.25) +
   theme_bw() +
   theme_minimal() +
-  labs(title = "Alpine Climate Locations and Road System",
+  labs(title = "AOI: Alpine Climate Zones and Road Network",
        x = 'Longitude', y = 'Latitude')
 
+# even with the Alpine zones nearly transparent, there are clearly minimal roads
+  #....traversing into Alpine climate zones. This shows how the roadside bias is leading
+  #...to climatic bias and a strong misrepresentation of the actual niche's hypervolume
 
 ################################################################################
 # CONCLUSION:
