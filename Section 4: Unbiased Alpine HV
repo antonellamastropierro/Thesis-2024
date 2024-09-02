@@ -379,4 +379,7 @@ ggplot() +
 # the graph depicts the average HV volume over number of samples
 
 ###############################################################################
-# CONCLUSION: 
+# CONCLUSION:
+  # Scenario 1: the resulting HV curve was similar to the HV volume of the actual realized niche
+  # Scenario 2: the resulting HV curve was larger than the HV volume of the actual realized niche
+  # Scenario 3: the resulting HV curve was similar to the HV volume of the actual realized niche
