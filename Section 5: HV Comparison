@@ -384,7 +384,7 @@ ggplot() +
   geom_point(data = bio_bias_df_xy, aes(x = x, y = y, color = "roadside biased points"), alpha = .7, size = 1.5, shape=19) +
   scale_color_manual(values = c("roadside biased points" = "deeppink", "total points" = "turquoise")) +
   theme_minimal() +
-  labs(title = "Suitability Plot: Roadside Biased and Total Points", x = "Longitude", y = "Latitude", color = "Point Type")
+  labs(title = "Suitability Plot: Roadside Biased Points", x = "Longitude", y = "Latitude", color = "Point Type")
 
 #-------------------------------------------------------------------------------
 # Alpine Climate Locations and Road Map Plot
@@ -403,5 +403,18 @@ ggplot() +
 
 ################################################################################
 # CONCLUSION:
-  # Unbiased: The smaller HV suggests that the data points are more clustered or cover a more restricted range in the n-dimensional space.
-  # Biased: The larger HV suggests that the data points are more spread out, covering a larger range in the n-dimensional space.
+  # Scenario 1: comparing the two curves, the biased curve values are significantly higher than the
+    #...unbiased HV curve. The unbiased HV value is closer to the actual realized niche HV value.
+    # This shows how the roadside bias resulted in a climatic bias leading to a misrepresentation of the
+    #...actual realized niche.
+  # Scenario 2: comparing the two curves, both curves have similar values, however, the unbiased curve values are smaller
+    #...than the biased.
+    # This shows that once unbiased samples that better represent the data are added to the HV, the HV value will
+    #...begin to decrease as it gets closer to the HV volume of the actual realized niche.
+  # Scenario 3: comparing the two curves, both curves have similar values and are both close to the
+    #...the HV volume of the actual realized niche. However, the biased HV curve is now smaller than the unbiased.
+    # This shows that, once climatic bias is removed, the biased curved is affected by the quantity of the data.
+ # The first two scenarios show how roadside bias will have an impact on HV volume estimation by causing a climatic bias
+    #...in the data, affecting its quality.
+# The third scenario shows how, even if the biased data lacks climatic bias, it will still have an impact on HV volume estimation
+    #...as a result of lack of data quantity.
