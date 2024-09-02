@@ -349,6 +349,7 @@ ggplot() +
   theme_minimal()
 
 ################################################################################
-# CONCLUSION: the resulting mean HV volume for the biased sampling is significantly
-  #...larger than the mean HV volume for the unbiased samples. Convergence was not
-  #...achieved for any of the biased simulations
+# CONCLUSION:
+  # Scenario 1: the resulting HV curve was significantly larger than the HV volume of the actual realized niche
+  # Scenario 2: the resulting HV curve was significantly larger than the HV volume of the actual realized niche
+  # Scenario 3: the resulting HV curve was similar to the HV volume of the actual realized niche
