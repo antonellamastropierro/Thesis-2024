@@ -9,8 +9,9 @@
 ################################################################################
 # LEGEND:
   # AOI = area of interest (European Alps mountain range)
+  # EUR = Europe
   # bio = CHELSA environmental variables
-  # alp = alpine climate locations
+  # alp = alpine climate zones
 ################################################################################
 # PRELIMINARY 1: INSTALL AND LOAD PACKAGES
 
