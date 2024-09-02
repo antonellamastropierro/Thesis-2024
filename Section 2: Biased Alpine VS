@@ -9,7 +9,7 @@
 # SECTION I: UNBIASED ALPINE VS RECAP
 # Created a virtual species based on fixed alpine climate parameters with suitability to an alpine climate
 # Created a presence/absence plot depicting the total realized niche of the species
-# Sampled for 5000 occurrences that represent the actual realized niche
+# Sampled for 5000 presence-only occurrences that represent the actual realized niche
 
 ################################################################################
 # LEGEND:
@@ -39,7 +39,7 @@
 # the coding use to obtain the OSM shapefile
 # already cropped to the extent of the EA boundary shapefile using OECONVERT
 query <- "SELECT * FROM 'lines' WHERE highway IN ('secondary', 'tertiary')"
-## REMEMBER TO EXPLAIN THIS CODE!!
+# the code used is SQL-like query to select the secondary and tertiary highways
 ea_osm <- oe_read("alp_shpfiles/europe-latest.osm.pbf", 
                   query = query, layer = 'lines')
 # function was successful in obtaining the secondary and tertiary roads for the
@@ -66,7 +66,7 @@ load("alp_shpfiles/AOI.shp")
 st_crs(ea_osm_clean)==st_crs(AOI)
 # returned TRUE
 
-# the OSM streetfile geometries are unable to configure with the Alp boundary shapefi;e
+# the OSM streetfile geometries are unable to configure with the Alp boundary shapefile
 # the following method switches from spherical to planar in order to mask the OSM roads to
   #...the EA boundary
 sf_use_s2(FALSE)
@@ -74,13 +74,11 @@ AOI_planar <- st_make_valid(AOI)
 ea_osm_planar <- st_make_valid(osm)
 OSM_AOI <- st_intersection(ea_osm_planar, AOI_planar)
 # the OSM roads are now shown confined within the EA boundary
-## REMEMER TO EXPLAIN THIS PART BETTER!
+
 
 # turn spherical geometry back on
 sf_use_s2(T)
-## REMEMBER TO EXPLAIN THIS BETTER!
 
-# WARNING MESSAGE: attribute variables are assumed to be spatially constant throughout all geometries
 # save the shapefile for later use
 save(OSM_AOI, file = "alp_shpfiles/OSM_AOI.shp")
 # load(file = "alp_shpfiles/OSM_AOI.shp")
