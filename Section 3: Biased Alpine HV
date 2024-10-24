@@ -39,7 +39,7 @@
 # PRELIMINARY 1: Create Hypervolume Functions
 # create the following functions:
 # 1. calculate the hypervolume (Gaussian KDE)
-# 2. calculate the hypervolume accumulation of a subset of data and check for convergence based on defined criteria
+# 2. calculate the hypervolume accumulation of a subset of data
 
 # Function 1: HV calculation function (df = dataframe)
 calc_hv <- function(df) {
